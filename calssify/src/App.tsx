@@ -12,6 +12,8 @@ const App: React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [results, setResults] = useState<ClassificationResult[]>([]);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -23,13 +25,24 @@ const App: React.FC = () => {
     const formData = new FormData();
     files.forEach((file) => formData.append("images", file));
 
+    setLoading(true);
+    setProgress(10);
+
+    const timer = setInterval(() => {
+      setProgress((p) => (p < 90 ? p + 10 : p)); // fake smooth progress
+    }, 200);
+
     try {
       const res = await axios.post<{ results: { filename: string; label: string }[] }>(
         "http://localhost:5000/classify",
         formData,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (e) => {
+            if (e.total) {
+              const percent = Math.round((e.loaded * 100) / e.total);
+              setProgress(percent);
+            }
           },
         }
       );
@@ -42,6 +55,13 @@ const App: React.FC = () => {
       setResults(enriched);
     } catch (error) {
       console.error("Error uploading files:", error);
+    } finally {
+      clearInterval(timer);
+      setProgress(100);
+      setTimeout(() => {
+        setLoading(false);
+        setProgress(0);
+      }, 500);
     }
   };
 
@@ -62,11 +82,22 @@ const App: React.FC = () => {
           />
           <button
             onClick={handleUpload}
-            className="bg-blue-600 text-white font-semibold px-6 py-2 rounded hover:bg-blue-700 transition"
+            className="bg-blue-600 text-white font-semibold px-6 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+            disabled={loading || files.length === 0}
           >
-            Upload & Classify
+            {loading ? "Processing..." : "Upload & Classify"}
           </button>
         </div>
+
+        {/* Progress Bar */}
+        {loading && (
+          <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
+            <div
+              className="bg-blue-600 h-full transition-all duration-200"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+        )}
 
         {results.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
