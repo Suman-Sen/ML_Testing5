@@ -11,6 +11,39 @@ const port = 5000;
 const upload = multer({ dest: 'uploads/' });
 app.use(cors());
 
+
+app.post('/metadata', upload.array('images'), async (req: Request, res: Response) => {
+  const files = req.files as Express.Multer.File[];
+  const results: { filename: string; inferred_label: string }[] = [];
+
+  for (const file of files) {
+    const form = new FormData();
+    // form.append('image', fs.createReadStream(file.path));
+    form.append('image', fs.createReadStream(file.path), file.originalname);
+
+    try {
+      const response = await axios.post('http://localhost:6000/metadata', form, {
+        headers: form.getHeaders(),
+      });
+
+      results.push({
+        filename: file.originalname,
+        inferred_label: response.data.inferred_label,
+      });
+    } catch (err) {
+      console.error('Error from metadata server:', err);
+      results.push({
+        filename: file.originalname,
+        inferred_label: 'Error',
+      });
+    }
+
+    fs.unlinkSync(file.path); // cleanup
+  }
+
+  res.json({ results });
+});
+
 app.post('/classify', upload.array('images'), async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
   const results: { filename: string; label: string }[] = [];

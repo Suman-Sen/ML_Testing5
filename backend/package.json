@@ -21,7 +21,6 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@tensorflow/tfjs-node": "^4.22.0",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
