@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { ChangeEvent } from "react";
-import axios, { AxiosError } from "axios";
 import NavBar from "./components/ui/NavBar";
 import IQ from "/images/IQ.png";
+import { v4 as uuidv4 } from "uuid";
 
 interface Metadata {
   [key: string]: string | number | null | undefined;
@@ -12,13 +12,8 @@ interface ClassificationResult {
   filename: string;
   label?: string;
   inferred_label?: string;
-  file: File;
   metadata?: Metadata;
   showMetadata?: boolean;
-}
-
-interface ServerResponse {
-  results: Omit<ClassificationResult, "file" | "showMetadata">[];
 }
 
 const App: React.FC = () => {
@@ -27,65 +22,12 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [mode, setMode] = useState<"classify" | "metadata">("classify");
+  const wsRef = useRef<WebSocket | null>(null);
+  const requestId = useRef<string>(uuidv4());
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFiles(Array.from(e.target.files));
-    }
-  };
-
-  const handleScan = async (endpoint: "classify" | "metadata") => {
-    const formData = new FormData();
-    files.forEach((file) => formData.append("images", file));
-
-    setMode(endpoint);
-    setLoading(true);
-    setProgress(10);
-
-    const timer = setInterval(() => {
-      setProgress((p) => (p < 90 ? p + 10 : p));
-    }, 200);
-
-    try {
-      const res = await axios.post<ServerResponse>(
-        `http://localhost:5000/${endpoint}`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-          onUploadProgress: (e) => {
-            if (e.total) {
-              const percent = Math.round((e.loaded * 100) / e.total);
-              setProgress(percent);
-            }
-          },
-        }
-      );
-
-      if (!Array.isArray(res.data.results)) {
-        throw new Error("Unexpected server response format");
-      }
-
-      const enriched: ClassificationResult[] = res.data.results.map((r) => ({
-        ...r,
-        file: files.find((f) => f.name === r.filename)!,
-        showMetadata: false,
-      }));
-
-      setResults(enriched);
-    } catch (error) {
-      const message =
-        axios.isAxiosError(error) && error.response
-          ? error.response.data?.error || "Server error"
-          : (error as Error).message;
-      alert("Error uploading files: " + message);
-      console.error("Upload failed:", error);
-    } finally {
-      clearInterval(timer);
-      setProgress(100);
-      setTimeout(() => {
-        setLoading(false);
-        setProgress(0);
-      }, 500);
     }
   };
 
@@ -95,13 +37,73 @@ const App: React.FC = () => {
     );
   };
 
+  const upload = async (scanType: "classify" | "metadata") => {
+    if (files.length === 0) return;
+
+    setLoading(true);
+    setMode(scanType);
+    setProgress(10);
+    setResults([]);
+    const id = uuidv4();
+    requestId.current = id;
+
+    // Set up WebSocket listener
+    wsRef.current = new WebSocket("ws://localhost:5000");
+
+    wsRef.current.onopen = () => {
+      wsRef.current?.send(JSON.stringify({ id, type: scanType }));
+    };
+
+    wsRef.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.requestId !== id) return;
+
+      setResults((prev) => [
+        ...prev,
+        ...data.batch.map((r: any) => ({ ...r, showMetadata: false })),
+      ]);
+
+      setProgress((prev) => Math.min(prev + 15, 95));
+    };
+
+    wsRef.current.onerror = (e) => {
+      console.error("WebSocket error:", e);
+      alert("WebSocket error occurred.");
+    };
+
+    wsRef.current.onclose = () => {
+      setProgress(100);
+      setTimeout(() => {
+        setLoading(false);
+        setProgress(0);
+      }, 500);
+    };
+
+    // Upload images
+    const formData = new FormData();
+    files.forEach((file) => formData.append("images", file));
+
+    try {
+      await fetch("http://localhost:5000/upload", {
+        method: "POST",
+        body: formData,
+      });
+    } catch (err) {
+      alert("Upload failed.");
+      console.error(err);
+      setLoading(false);
+      setProgress(0);
+    }
+  };
+
   return (
     <>
       <NavBar logoSrc={IQ} />
       <div className="min-h-screen bg-gray-100 p-6">
         <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-8">
           <h1 className="text-3xl font-bold text-center mb-6 text-blue-700">
-            ID Card Classifier
+            ID Card Classifier (Live Streaming)
           </h1>
 
           <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
@@ -113,19 +115,19 @@ const App: React.FC = () => {
               type="file"
               multiple
               accept="image/*,application/pdf"
-              onChange={handleChange}
+              onChange={handleFileChange}
               className="block w-full md:w-auto border border-gray-300 rounded px-4 py-2 bg-white shadow-sm"
             />
 
             <button
-              onClick={() => handleScan("classify")}
+              onClick={() => upload("classify")}
               className="bg-green-600 text-white font-semibold px-6 py-2 rounded hover:bg-green-700 transition disabled:opacity-50"
               disabled={loading || files.length === 0}
             >
               ML Scan
             </button>
             <button
-              onClick={() => handleScan("metadata")}
+              onClick={() => upload("metadata")}
               className="bg-purple-600 text-white font-semibold px-6 py-2 rounded hover:bg-purple-700 transition disabled:opacity-50"
               disabled={loading || files.length === 0}
             >

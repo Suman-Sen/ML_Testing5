@@ -1,18 +1,27 @@
+// import express, { Request, Response, NextFunction } from 'express';
+// server.ts
 import express, { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import cors from 'cors';
 import fs from 'fs';
 import axios from 'axios';
 import FormData from 'form-data';
-import path from 'path';
+import { WebSocketServer } from 'ws';
+import http from 'http';
 
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 const port = 5000;
 const upload = multer({ dest: 'uploads/' });
 
 app.use(cors());
 
-// Types
+interface ClientMessage {
+  id: string;
+  type: 'classify' | 'metadata';
+}
+
 interface MetadataResult {
   filename: string;
   inferred_label: string;
@@ -25,107 +34,114 @@ interface ClassifyResult {
   metadata: Record<string, any>;
 }
 
-//Middleware for error wrapping
-function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
-  return (req: Request, res: Response, next: NextFunction) => {
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function asyncHandler(
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+): express.RequestHandler {
+  return (req, res, next) => {
     fn(req, res, next).catch(next);
   };
 }
 
-//Routes
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-app.post(
-  '/metadata',
-  upload.array('images'),
-  asyncHandler(async (req: Request, res: Response) => {
-    const files = req.files as Express.Multer.File[];
-    const results: MetadataResult[] = [];
+let globalWs: import('ws').WebSocket | null = null;
+let requestId: string = '';
+let scanType: 'classify' | 'metadata' = 'classify';
 
-    for (const file of files) {
-      const form = new FormData();
-      form.append('image', fs.createReadStream(file.path), file.originalname);
+wss.on('connection', (ws) => {
+  globalWs = ws;
 
-      try {
-        const response = await axios.post('http://localhost:6000/metadata', form, {
-          headers: form.getHeaders(),
-          // timeout: 10000, // optional: timeout in ms
-        });
-
-        results.push({
-          filename: file.originalname,
-          inferred_label: response.data.file_based || 'Unknown',
-          metadata: response.data.metadata || {},
-        });
-      } catch (err: any) {
-        console.error(`Metadata error for file ${file.originalname}:`, err.message);
-        results.push({
-          filename: file.originalname,
-          inferred_label: 'Error',
-          metadata: {},
-        });
-      } finally {
-        // Cleanup temp file safely
-        try {
-          fs.unlinkSync(file.path);
-        } catch (cleanupErr) {
-          console.warn(`Failed to delete temp file ${file.path}:`, cleanupErr);
-        }
-      }
-    }
-
-    res.json({ results });
-  })
-);
-
-app.post(
-  '/classify',
-  upload.array('images'),
-  asyncHandler(async (req: Request, res: Response) => {
-    const files = req.files as Express.Multer.File[];
-    const results: ClassifyResult[] = [];
-
-    for (const file of files) {
-      const form = new FormData();
-      form.append('image', fs.createReadStream(file.path), file.originalname);
-
-      try {
-        const response = await axios.post('http://localhost:6000/predict', form, {
-          headers: form.getHeaders(),
-          timeout: 10000,
-        });
-
-        results.push({
-          filename: file.originalname,
-          label: response.data.label || 'Unknown',
-          metadata: response.data.metadata || {},
-        });
-      } catch (err: any) {
-        console.error(`Classification error for file ${file.originalname}:`, err.message);
-        results.push({
-          filename: file.originalname,
-          label: 'Error',
-          metadata: {},
-        });
-      } finally {
-        try {
-          fs.unlinkSync(file.path);
-        } catch (cleanupErr) {
-          console.warn(`Failed to delete temp file ${file.path}:`, cleanupErr);
-        }
-      }
-    }
-
-    res.json({ results });
-  })
-);
-
-//Global Error Handler
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("Unhandled error:", err.stack);
-  res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  ws.on('message', (message) => {
+    const parsed: ClientMessage = JSON.parse(message.toString());
+    requestId = parsed.id;
+    scanType = parsed.type;
+  });
 });
 
-// Start Server
-app.listen(port, () => {
-  console.log(`🚀 Express server running at http://localhost:${port}`);
+app.post(
+  '/upload',
+  upload.array('images'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const files = req.files as Express.Multer.File[];
+    const batches = chunkArray(files, 5);
+
+    for (const batch of batches) {
+      const results = await Promise.all(
+        batch.map(async (file) => {
+          const form = new FormData();
+          form.append('image', fs.createReadStream(file.path), file.originalname);
+
+          const url =
+            scanType === 'classify'
+              ? 'http://localhost:6000/predict'
+              : 'http://localhost:6000/metadata';
+
+          try {
+            const response = await axios.post(url, form, {
+              headers: form.getHeaders(),
+              timeout: 20000,
+            });
+
+            return scanType === 'classify'
+              ? {
+                  filename: file.originalname,
+                  label: response.data.label,
+                  metadata: response.data.metadata || {},
+                }
+              : {
+                  filename: file.originalname,
+                  inferred_label: response.data.file_based,
+                  metadata: response.data.metadata || {},
+                };
+          } catch (e) {
+            return scanType === 'classify'
+              ? {
+                  filename: file.originalname,
+                  label: 'Error',
+                  metadata: {},
+                }
+              : {
+                  filename: file.originalname,
+                  inferred_label: 'Error',
+                  metadata: {},
+                };
+          } finally {
+            try {
+              fs.unlinkSync(file.path);
+            } catch {}
+          }
+        })
+      );
+
+      await sleep(1500); // Delay between batches
+
+      if (globalWs && globalWs.readyState === globalWs.OPEN) {
+        globalWs.send(
+          JSON.stringify({
+            requestId,
+            type: scanType,
+            batch: results,
+          })
+        );
+      }
+    }
+
+    res.status(200).json({ status: 'Uploaded' });
+  })
+);
+
+app.use((_req, res) => {
+  res.status(404).send('Not found');
+});
+
+server.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
 });
