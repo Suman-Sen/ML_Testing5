@@ -1,86 +1,4 @@
-// import express, { Request, Response } from 'express';
-// import multer from 'multer';
-// import cors from 'cors';
-// import fs from 'fs';
-// import axios from 'axios';
-// import FormData from 'form-data';
-// import path from 'path';
-
-// const app = express();
-// const port = 5000;
-// const upload = multer({ dest: 'uploads/' });
-// app.use(cors());
-
-
-// app.post('/metadata', upload.array('images'), async (req: Request, res: Response) => {
-//   const files = req.files as Express.Multer.File[];
-//   const results: { filename: string; inferred_label: string }[] = [];
-
-//   for (const file of files) {
-//     const form = new FormData();
-//     // form.append('image', fs.createReadStream(file.path));
-//     form.append('image', fs.createReadStream(file.path), file.originalname);
-
-//     try {
-//       const response = await axios.post('http://localhost:6000/metadata', form, {
-//         headers: form.getHeaders(),
-//       });
-
-//       results.push({
-//         filename: file.originalname,
-//         inferred_label: response.data.inferred_label,
-//       });
-//     } catch (err) {
-//       console.error('Error from metadata server:', err);
-//       results.push({
-//         filename: file.originalname,
-//         inferred_label: 'Error',
-//       });
-//     }
-
-//     fs.unlinkSync(file.path); // cleanup
-//   }
-
-//   res.json({ results });
-// });
-
-// app.post('/classify', upload.array('images'), async (req: Request, res: Response) => {
-//   const files = req.files as Express.Multer.File[];
-//   const results: { filename: string; label: string }[] = [];
-
-//   for (const file of files) {
-//     const form = new FormData();
-//     form.append('image', fs.createReadStream(file.path));
-
-//     try {
-//       const response = await axios.post('http://localhost:6000/predict', form, {
-//         headers: form.getHeaders(),
-//       });
-
-//       results.push({
-//         filename: file.originalname,
-//         label: response.data.label,
-//       });
-//     } catch (err) {
-//       console.error('Error from model server:', err);
-//       results.push({
-//         filename: file.originalname,
-//         label: 'Error',
-//       });
-//     }
-
-//     fs.unlinkSync(file.path); // cleanup
-//   }
-
-//   res.json({ results });
-// });
-
-// app.listen(port, () => {
-//   console.log(`Express server running at http://localhost:${port}`);
-// });
-
-
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import cors from 'cors';
 import fs from 'fs';
@@ -91,80 +9,123 @@ import path from 'path';
 const app = express();
 const port = 5000;
 const upload = multer({ dest: 'uploads/' });
+
 app.use(cors());
 
+// Types
 interface MetadataResult {
   filename: string;
   inferred_label: string;
   metadata: Record<string, any>;
 }
 
-app.post('/metadata', upload.array('images'), async (req: Request, res: Response) => {
-  const files = req.files as Express.Multer.File[];
-  const results: MetadataResult[] = [];
+interface ClassifyResult {
+  filename: string;
+  label: string;
+  metadata: Record<string, any>;
+}
 
-  for (const file of files) {
-    const form = new FormData();
-    form.append('image', fs.createReadStream(file.path), file.originalname);
+//Middleware for error wrapping
+function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch(next);
+  };
+}
 
-    try {
-      const response = await axios.post('http://localhost:6000/metadata', form, {
-        headers: form.getHeaders(),
-      });
+//Routes
 
-      results.push({
-        filename: file.originalname,
-        inferred_label: response.data.inferred_label,
-        metadata: response.data.metadata || {},
-      });
-    } catch (err) {
-      console.error('Error from metadata server:', err);
-      results.push({
-        filename: file.originalname,
-        inferred_label: 'Error',
-        metadata: {},
-      });
+app.post(
+  '/metadata',
+  upload.array('images'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const files = req.files as Express.Multer.File[];
+    const results: MetadataResult[] = [];
+
+    for (const file of files) {
+      const form = new FormData();
+      form.append('image', fs.createReadStream(file.path), file.originalname);
+
+      try {
+        const response = await axios.post('http://localhost:6000/metadata', form, {
+          headers: form.getHeaders(),
+          // timeout: 10000, // optional: timeout in ms
+        });
+
+        results.push({
+          filename: file.originalname,
+          inferred_label: response.data.file_based || 'Unknown',
+          metadata: response.data.metadata || {},
+        });
+      } catch (err: any) {
+        console.error(`Metadata error for file ${file.originalname}:`, err.message);
+        results.push({
+          filename: file.originalname,
+          inferred_label: 'Error',
+          metadata: {},
+        });
+      } finally {
+        // Cleanup temp file safely
+        try {
+          fs.unlinkSync(file.path);
+        } catch (cleanupErr) {
+          console.warn(`Failed to delete temp file ${file.path}:`, cleanupErr);
+        }
+      }
     }
 
-    fs.unlinkSync(file.path); // cleanup
-  }
+    res.json({ results });
+  })
+);
 
-  res.json({ results });
-});
+app.post(
+  '/classify',
+  upload.array('images'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const files = req.files as Express.Multer.File[];
+    const results: ClassifyResult[] = [];
 
-app.post('/classify', upload.array('images'), async (req: Request, res: Response) => {
-  const files = req.files as Express.Multer.File[];
-  const results: { filename: string; label: string; metadata: Record<string, any> }[] = [];
+    for (const file of files) {
+      const form = new FormData();
+      form.append('image', fs.createReadStream(file.path), file.originalname);
 
-  for (const file of files) {
-    const form = new FormData();
-    form.append('image', fs.createReadStream(file.path));
+      try {
+        const response = await axios.post('http://localhost:6000/predict', form, {
+          headers: form.getHeaders(),
+          timeout: 10000,
+        });
 
-    try {
-      const response = await axios.post('http://localhost:6000/predict', form, {
-        headers: form.getHeaders(),
-      });
-
-      results.push({
-        filename: file.originalname,
-        label: response.data.label,
-        metadata: response.data.metadata || {},
-      });
-    } catch (err) {
-      console.error('Error from model server:', err);
-      results.push({
-        filename: file.originalname,
-        label: 'Error',
-        metadata: {},
-      });
+        results.push({
+          filename: file.originalname,
+          label: response.data.label || 'Unknown',
+          metadata: response.data.metadata || {},
+        });
+      } catch (err: any) {
+        console.error(`Classification error for file ${file.originalname}:`, err.message);
+        results.push({
+          filename: file.originalname,
+          label: 'Error',
+          metadata: {},
+        });
+      } finally {
+        try {
+          fs.unlinkSync(file.path);
+        } catch (cleanupErr) {
+          console.warn(`Failed to delete temp file ${file.path}:`, cleanupErr);
+        }
+      }
     }
 
-    fs.unlinkSync(file.path); // cleanup
-  }
+    res.json({ results });
+  })
+);
 
-  res.json({ results });
+//Global Error Handler
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("Unhandled error:", err.stack);
+  res.status(500).json({ error: 'Internal Server Error', details: err.message });
 });
 
+// Start Server
 app.listen(port, () => {
-  console.log(`Express server running at http://localhost:${port}`);
+  console.log(`🚀 Express server running at http://localhost:${port}`);
 });
