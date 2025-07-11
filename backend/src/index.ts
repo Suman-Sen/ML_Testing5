@@ -1,3 +1,85 @@
+// import express, { Request, Response } from 'express';
+// import multer from 'multer';
+// import cors from 'cors';
+// import fs from 'fs';
+// import axios from 'axios';
+// import FormData from 'form-data';
+// import path from 'path';
+
+// const app = express();
+// const port = 5000;
+// const upload = multer({ dest: 'uploads/' });
+// app.use(cors());
+
+
+// app.post('/metadata', upload.array('images'), async (req: Request, res: Response) => {
+//   const files = req.files as Express.Multer.File[];
+//   const results: { filename: string; inferred_label: string }[] = [];
+
+//   for (const file of files) {
+//     const form = new FormData();
+//     // form.append('image', fs.createReadStream(file.path));
+//     form.append('image', fs.createReadStream(file.path), file.originalname);
+
+//     try {
+//       const response = await axios.post('http://localhost:6000/metadata', form, {
+//         headers: form.getHeaders(),
+//       });
+
+//       results.push({
+//         filename: file.originalname,
+//         inferred_label: response.data.inferred_label,
+//       });
+//     } catch (err) {
+//       console.error('Error from metadata server:', err);
+//       results.push({
+//         filename: file.originalname,
+//         inferred_label: 'Error',
+//       });
+//     }
+
+//     fs.unlinkSync(file.path); // cleanup
+//   }
+
+//   res.json({ results });
+// });
+
+// app.post('/classify', upload.array('images'), async (req: Request, res: Response) => {
+//   const files = req.files as Express.Multer.File[];
+//   const results: { filename: string; label: string }[] = [];
+
+//   for (const file of files) {
+//     const form = new FormData();
+//     form.append('image', fs.createReadStream(file.path));
+
+//     try {
+//       const response = await axios.post('http://localhost:6000/predict', form, {
+//         headers: form.getHeaders(),
+//       });
+
+//       results.push({
+//         filename: file.originalname,
+//         label: response.data.label,
+//       });
+//     } catch (err) {
+//       console.error('Error from model server:', err);
+//       results.push({
+//         filename: file.originalname,
+//         label: 'Error',
+//       });
+//     }
+
+//     fs.unlinkSync(file.path); // cleanup
+//   }
+
+//   res.json({ results });
+// });
+
+// app.listen(port, () => {
+//   console.log(`Express server running at http://localhost:${port}`);
+// });
+
+
 import express, { Request, Response } from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -11,14 +93,18 @@ const port = 5000;
 const upload = multer({ dest: 'uploads/' });
 app.use(cors());
 
+interface MetadataResult {
+  filename: string;
+  inferred_label: string;
+  metadata: Record<string, any>;
+}
 
 app.post('/metadata', upload.array('images'), async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
-  const results: { filename: string; inferred_label: string }[] = [];
+  const results: MetadataResult[] = [];
 
   for (const file of files) {
     const form = new FormData();
-    // form.append('image', fs.createReadStream(file.path));
     form.append('image', fs.createReadStream(file.path), file.originalname);
 
     try {
@@ -29,12 +115,14 @@ app.post('/metadata', upload.array('images'), async (req: Request, res: Response
       results.push({
         filename: file.originalname,
         inferred_label: response.data.inferred_label,
+        metadata: response.data.metadata || {},
       });
     } catch (err) {
       console.error('Error from metadata server:', err);
       results.push({
         filename: file.originalname,
         inferred_label: 'Error',
+        metadata: {},
       });
     }
 
@@ -46,7 +134,7 @@ app.post('/metadata', upload.array('images'), async (req: Request, res: Response
 
 app.post('/classify', upload.array('images'), async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
-  const results: { filename: string; label: string }[] = [];
+  const results: { filename: string; label: string; metadata: Record<string, any> }[] = [];
 
   for (const file of files) {
     const form = new FormData();
@@ -60,12 +148,14 @@ app.post('/classify', upload.array('images'), async (req: Request, res: Response
       results.push({
         filename: file.originalname,
         label: response.data.label,
+        metadata: response.data.metadata || {},
       });
     } catch (err) {
       console.error('Error from model server:', err);
       results.push({
         filename: file.originalname,
         label: 'Error',
+        metadata: {},
       });
     }
 
