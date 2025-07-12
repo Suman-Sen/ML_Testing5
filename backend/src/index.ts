@@ -121,7 +121,7 @@ app.post(
         })
       );
 
-      await sleep(1500); // Delay between batches
+    //   await sleep(1500); // Delay between batches
 
       if (globalWs && globalWs.readyState === globalWs.OPEN) {
         globalWs.send(
