@@ -25,3 +25,4 @@ dist-ssr
 *.sw?
 .models/*
 venv
+venv.model
