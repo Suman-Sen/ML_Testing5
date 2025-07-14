@@ -26,3 +26,4 @@ dist-ssr
 .models/*
 venv
 venv.model
+myenv

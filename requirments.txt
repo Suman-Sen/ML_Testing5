@@ -11,3 +11,4 @@ tensorflow
 Pillow
 PyMuPDF
 SQLAlchemy
+flask-cors
