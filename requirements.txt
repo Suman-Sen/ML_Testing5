@@ -1,0 +1,15 @@
+ExifRead
+Pillow
+PyMuPDF
+SQLAlchemy
+beautifulsoup4
+flask
+flask-cors
+keras
+numpy
+pandas
+python-docx
+python-pptx
+striprtf
+beautifulsoup4
+openpyxl
