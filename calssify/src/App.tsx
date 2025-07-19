@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import NavBar from "./components/ui/NavBar";
 import IQ from "/images/IQ.png";
 import { v4 as uuidv4 } from "uuid";
+import TableSkeleton from "./components/ui/TebleSkeliton";
 interface Metadata {
   [key: string]: string | number | null | undefined;
 }
@@ -286,15 +287,16 @@ const App: React.FC = () => {
               </button>
             </div>
           )}
-
+{/* 
           {loading && (
-            <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-6">
-              <div
-                className="bg-blue-600 h-full transition-all duration-200"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          )}
+            // <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-6">
+            //   <div
+            //     className="bg-blue-600 h-full transition-all duration-200"
+            //     style={{ width: `${progress}%` }}
+            //   />
+            // </div>
+            <TableSkeleton></TableSkeleton>
+          )} */}
 
           {results.length > 0 && (
             <div className="overflow-x-auto mt-6">
