@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import NavBar from "./components/ui/NavBar";
 import IQ from "/images/IQ.png";
 import { v4 as uuidv4 } from "uuid";
+
 interface Metadata {
   [key: string]: string | number | null | undefined;
 }
@@ -25,25 +26,19 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [mode, setMode] = useState<"classify" | "metadata">("classify");
-  const [scanContext, setScanContext] = useState<"document" | "db">(
-    "document"
-  );
+  const [scanContext, setScanContext] = useState<"document" | "db">("document");
 
   const [dbConnString, setDbConnString] = useState<string>("");
-  const [dbScanType, setDbScanType] = useState<
-    "pii-meta" | "pii-full" | "pii-table"
-  >("pii-full");
+  const [dbScanType, setDbScanType] = useState<"pii-meta" | "pii-full" | "pii-table">("pii-full");
   const [tableName, setTableName] = useState<string>("");
 
   const wsRef = useRef<WebSocket | null>(null);
   const requestId = useRef<string>(uuidv4());
 
-  // Reset results when switching context
   useEffect(() => {
     setResults([]);
   }, [scanContext]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (wsRef.current) {
@@ -78,13 +73,11 @@ const App: React.FC = () => {
     const id = uuidv4();
     requestId.current = id;
 
-    // close previous socket
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
 
-    // open new WS
     const socket = new WebSocket("ws://localhost:3000");
     wsRef.current = socket;
 
@@ -101,7 +94,6 @@ const App: React.FC = () => {
         return;
       }
 
-      // append batch
       setResults((prev) => [
         ...prev,
         ...data.batch.map((r: any) => ({ ...r, showMetadata: false })),
@@ -124,18 +116,14 @@ const App: React.FC = () => {
       }, 500);
     };
 
-    // send upload request
     const formData = new FormData();
     files.forEach((file) => formData.append("images", file));
 
     try {
-      await fetch(
-        `http://localhost:3000/upload?id=${id}&type=${scanType}`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      await fetch(`http://localhost:3000/upload?id=${id}&type=${scanType}`, {
+        method: "POST",
+        body: formData,
+      });
     } catch (err) {
       console.error("Upload failed:", err);
       setLoading(false);
@@ -189,7 +177,7 @@ const App: React.FC = () => {
                   : "bg-gray-300"
               }`}
             >
-              Document Scan
+              Image Scan
             </button>
             <button
               onClick={() => setScanContext("db")}
@@ -216,6 +204,8 @@ const App: React.FC = () => {
                 accept="image/*,application/pdf"
                 onChange={handleFileChange}
                 className="block w-full md:w-auto border border-gray-300 rounded px-4 py-2 bg-white shadow-sm"
+                title="Upload images or PDF files"
+                placeholder="Select images or PDFs"
               />
 
               <button
@@ -245,12 +235,18 @@ const App: React.FC = () => {
                 value={dbConnString}
                 onChange={(e) => setDbConnString(e.target.value)}
                 className="w-full border border-gray-300 rounded px-3 py-2"
+                title="Enter database connection string"
+                placeholder="Database connection string"
               />
 
-              <label className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="scan-type-select"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Scan Type
               </label>
               <select
+                id="scan-type-select"
                 value={dbScanType}
                 onChange={(e) =>
                   setDbScanType(e.target.value as typeof dbScanType)
@@ -290,7 +286,7 @@ const App: React.FC = () => {
           {loading && (
             <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-6">
               <div
-                className="bg-blue-600 h-full transition-all duration-200"
+                className={`bg-blue-600 h-full transition-all duration-200 progress-bar`}
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -303,9 +299,7 @@ const App: React.FC = () => {
                   <tr>
                     <th className="px-4 py-2 text-left">Sl. No</th>
                     <th className="px-4 py-2 text-left">Source</th>
-                    <th className="px-4 py-2 text-left">
-                      Label / PII Type
-                    </th>
+                    <th className="px-4 py-2 text-left">Label / PII Type</th>
                     <th className="px-4 py-2 text-left">Details</th>
                   </tr>
                 </thead>
@@ -333,7 +327,6 @@ const App: React.FC = () => {
                           </button>
                         </td>
                       </tr>
-
                       {res.showMetadata && (
                         <tr className="bg-gray-100 border-t">
                           <td colSpan={4} className="px-6 py-4 text-xs">
@@ -366,3 +359,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+

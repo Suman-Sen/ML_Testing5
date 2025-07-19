@@ -105,7 +105,7 @@ def home():
         </form>
     """)
 
-@app.route('/upload', methods=['POST'])
+@app.route('/document-upload', methods=['POST'])
 def upload():
     uploaded_files = request.files.getlist("files")
     if not uploaded_files:
