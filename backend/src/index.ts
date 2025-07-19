@@ -80,10 +80,17 @@ app.post(
     '/upload',
     upload.array('images'),
     asyncHandler(async (req: Request, res: Response) => {
-        const files = req.files as Express.Multer.File[];
         const id = String(req.query.id);
         const scanType = String(req.query.type) as 'classify' | 'metadata';
         const clientWs = socketsById.get(id) || null;
+
+        const files = req.files as Express.Multer.File[] | undefined;
+
+        if (!files || files.length === 0) {
+            console.error('No files uploaded.');
+            res.status(400).json({ error: 'No files uploaded' });
+            return;
+        }
 
         const batches = chunkArray(files, 5);
         for (const batch of batches) {
@@ -121,7 +128,7 @@ app.post(
                     } finally {
                         try {
                             fs.unlinkSync(file.path);
-                        } catch {}
+                        } catch { }
                     }
                 })
             );
@@ -170,10 +177,13 @@ app.post(
         }
 
         try {
-            const response = await axios.post(`http://localhost:5003${endpoint}`, payload);
+            const response = await axios.post(`http://localhost:5000${endpoint}`, payload);
             res.json({ data: response.data });
         } catch (err: any) {
             console.error('PII Bridge Error:', err.message);
+            console.error('Axios Error Code:', err.code);
+            console.error('Axios Full Error:', err.toJSON?.() || err);
+            console.error('Flask Response (if any):', err?.response?.data);
             res.status(500).json({ error: 'Failed to query Flask PII service' });
         }
     })
@@ -184,9 +194,15 @@ app.post(
     '/document-pii',
     upload.array('files'),
     asyncHandler(async (req: Request, res: Response) => {
-        const files = req.files as Express.Multer.File[];
         const requestId = String(req.query.id);
         const clientWs = socketsById.get(requestId) || null;
+
+        const files = req.files as Express.Multer.File[] | undefined;
+
+        if (!files || files.length === 0) {
+            res.status(400).json({ error: 'No files uploaded for document PII' });
+            return;
+        }
 
         const form = new FormData();
         files.forEach((file) => {
