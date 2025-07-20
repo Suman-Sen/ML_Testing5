@@ -152,9 +152,9 @@ app.post(
     })
 );
 
-// PII bridge route
+// DB PII bridge route
 app.post(
-    '/pii',
+    '/db-pii',
     asyncHandler(async (req: Request, res: Response) => {
         const { conn_string, type, table } = req.body;
         let endpoint = '';
