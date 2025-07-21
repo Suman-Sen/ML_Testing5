@@ -239,29 +239,35 @@ def detect_pii(text, selected_types=None):
     return pii_found, locations
 
 # Homepage with file upload and PII selection
+
 @app.route('/')
 def home():
-    checkboxes = "".join(
-        f'<label><input type="checkbox" name="pii_types" value="{pii}"> {pii}</label><br>'
-        for pii in PII_PATTERNS.keys()
-    )
-    return render_template_string(f"""
-        <h1>PII Detection App</h1>
-        <form action="/document-upload" method="post" enctype="multipart/form-data">
-            <p>Select one or more files to upload:</p>
-            <input type="file" name="files" multiple required><br><br>
-            <p>Select PII types to detect (leave all unchecked to detect none):</p>
-            {checkboxes}
-            <br>
-            <input type="submit" value="Upload">
-        </form>
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>PII Detector</title></head>
+        <body>
+            <h2>Upload Documents to Detect PII</h2>
+            <form method="POST" action="/document-upload" enctype="multipart/form-data">
+                <input type="file" name="files" multiple required><br><br>
+                <label><input type="checkbox" name="pii_types" value="aadhaar"> Aadhaar</label><br>
+                <label><input type="checkbox" name="pii_types" value="pan"> PAN</label><br>
+                <label><input type="checkbox" name="pii_types" value="passport"> Passport</label><br>
+                <label><input type="checkbox" name="pii_types" value="email"> Email</label><br>
+                <label><input type="checkbox" name="pii_types" value="phone"> Phone</label><br>
+                <br><button type="submit">Upload</button>
+            </form>
+        </body>
+        </html>
     """)
 
-# File upload and PII detection route
 @app.route('/document-upload', methods=['POST'])
-def upload():
+def document_upload():
     uploaded_files = request.files.getlist("files")
     selected_pii_types = request.form.getlist("pii_types")
+
+    if not selected_pii_types:
+        selected_pii_types = list(PII_PATTERNS.keys())
 
     if not uploaded_files:
         return jsonify({"error": "No files uploaded"}), 400
@@ -287,6 +293,5 @@ def upload():
 
     return jsonify(results)
 
-# Run the Flask app
 if __name__ == "__main__":
-    app.run(debug=True, port=PORT)
+    app.run(host="0.0.0.0", port=5003, debug=True)
