@@ -6,6 +6,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
+import asyncHandler from 'express-async-handler';
 
 const app = express();
 const server = http.createServer(app);
@@ -43,17 +44,26 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
     return chunks;
 }
 
-function asyncHandler(
-    fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
-): express.RequestHandler {
-    return (req, res, next) => {
-        fn(req, res, next).catch(next);
-    };
-}
+// =============================================================================
+// ================================================================
+/*=================================
+Just installing the asyncHeader 
+imports works fine no need to 
+write it
+=================================*/
+// function asyncHandler(
+//     fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+// ): express.RequestHandler {
+//     return (req, res, next) => {
+//         fn(req, res, next).catch(next);
+//     };
+// }
+// ================================================================
+// =============================================================================
+
 
 // WebSocket connection map
-const socketsById = new Map<string, WebSocket>();
-
+const socketsById = new Map<string, WebSocket>();   
 // WebSocket setup
 wss.on('connection', (ws) => {
     let currentId = '';
@@ -190,63 +200,132 @@ app.post(
 );
 
 // Document PII route with WebSocket support
+// app.post(
+//     '/document-pii',
+//     upload.array('files'),
+//     asyncHandler(async (req: Request, res: Response) => {
+//         const requestId = String(req.query.id);
+//         const clientWs = socketsById.get(requestId) || null;
+
+//         const files = req.files as Express.Multer.File[] | undefined;
+
+//         if (!files || files.length === 0) {
+//             res.status(400).json({ error: 'No files uploaded for document PII' });
+//             return;
+//         }
+
+//         const form = new FormData();
+//         files.forEach((file) => {
+//             form.append('files', fs.createReadStream(file.path), file.originalname);
+//         });
+
+//         try {
+//             const response = await axios.post('http://localhost:5003/document-upload', form, {
+//                 headers: form.getHeaders(),
+//                 timeout: 30000,
+//             });
+
+//             files.forEach((file) => fs.unlinkSync(file.path));
+
+//             if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+//                 clientWs.send(
+//                     JSON.stringify({
+//                         requestId,
+//                         type: 'document-pii',
+//                         results: response.data,
+//                         done: true,
+//                     })
+//                 );
+//             }
+
+//             res.status(200).json({ status: 'PII scan complete' });
+//         } catch (err: any) {
+//             console.error('Document PII Error:', err.message);
+
+//             if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+//                 clientWs.send(
+//                     JSON.stringify({
+//                         requestId,
+//                         type: 'document-pii',
+//                         error: 'Failed to analyze documents for PII',
+//                         done: true,
+//                     })
+//                 );
+//             }
+
+//             res.status(500).json({ error: 'Failed to analyze documents for PII' });
+//         }
+//     })
+// );
 app.post(
-    '/document-pii',
-    upload.array('files'),
-    asyncHandler(async (req: Request, res: Response) => {
-        const requestId = String(req.query.id);
-        const clientWs = socketsById.get(requestId) || null;
+  '/document-pii',
+  upload.array('files'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const requestId = String(req.query.id);
+    const clientWs = socketsById.get(requestId) || null;
 
-        const files = req.files as Express.Multer.File[] | undefined;
+    const files = req.files as Express.Multer.File[] | undefined;
+    const piiTypes = req.body.pii_types; // can be string or string[]
 
-        if (!files || files.length === 0) {
-            res.status(400).json({ error: 'No files uploaded for document PII' });
-            return;
-        }
+    if (!files || files.length === 0) {
+      res.status(400).json({ error: 'No files uploaded for document PII' });
+      return;
+    }
 
-        const form = new FormData();
-        files.forEach((file) => {
-            form.append('files', fs.createReadStream(file.path), file.originalname);
-        });
+    const form = new FormData();
+    files.forEach((file) => {
+      form.append('files', fs.createReadStream(file.path), file.originalname);
+    });
 
-        try {
-            const response = await axios.post('http://localhost:5003/document-upload', form, {
-                headers: form.getHeaders(),
-                timeout: 30000,
-            });
+    // Add selected PII types to form
+    if (piiTypes) {
+      if (Array.isArray(piiTypes)) {
+        piiTypes.forEach((type) => form.append('pii_types', type));
+      } else {
+        form.append('pii_types', piiTypes);
+      }
+    }
 
-            files.forEach((file) => fs.unlinkSync(file.path));
+    try {
+      const response = await axios.post('http://localhost:5003/document-upload', form, {
+        headers: form.getHeaders(),
+        timeout: 30000,
+      });
 
-            if (clientWs && clientWs.readyState === WebSocket.OPEN) {
-                clientWs.send(
-                    JSON.stringify({
-                        requestId,
-                        type: 'document-pii',
-                        results: response.data,
-                        done: true,
-                    })
-                );
-            }
+      // Cleanup uploaded files
+      files.forEach((file) => fs.unlinkSync(file.path));
 
-            res.status(200).json({ status: 'PII scan complete' });
-        } catch (err: any) {
-            console.error('Document PII Error:', err.message);
+      if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+        clientWs.send(
+          JSON.stringify({
+            requestId,
+            type: 'document-pii',
+            results: response.data,
+            done: true,
+          })
+        );
+      }
 
-            if (clientWs && clientWs.readyState === WebSocket.OPEN) {
-                clientWs.send(
-                    JSON.stringify({
-                        requestId,
-                        type: 'document-pii',
-                        error: 'Failed to analyze documents for PII',
-                        done: true,
-                    })
-                );
-            }
+      res.status(200).json({ status: 'PII scan complete' });
+    } catch (err: any) {
+      console.error('Document PII Error:', err.message);
 
-            res.status(500).json({ error: 'Failed to analyze documents for PII' });
-        }
-    })
+      if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+        clientWs.send(
+          JSON.stringify({
+            requestId,
+            type: 'document-pii',
+            error: 'Failed to analyze documents for PII',
+            done: true,
+          })
+        );
+      }
+
+      res.status(500).json({ error: 'Failed to analyze documents for PII' });
+    }
+  })
 );
+
 
 // Fallback route
 app.use((_req, res) => {
