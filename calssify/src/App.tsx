@@ -1,12 +1,8 @@
 import React, { useState, useRef, Fragment, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-<<<<<<< HEAD
-import TableSkeleton from "./components/ui/TebleSkeliton";
-=======
+
 import NavBar from "./components/ui/NavBar";
 const IQ = "/images/IQ.png";
-
->>>>>>> document_scaner
 interface Metadata {
   [key: string]: string | number | null | undefined;
 }
@@ -338,65 +334,6 @@ const App: React.FC = () => {
                   <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `${imageProgress}%` }} />
                 </div>
               )}
-<<<<<<< HEAD
-
-              <button
-                onClick={runDbScan}
-                className="bg-green-600 text-white font-semibold px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-                disabled={loading || !dbConnString}
-              >
-                Run DB Scan
-              </button>
-            </div>
-          )}
-{/* 
-          {loading && (
-            // <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-6">
-            //   <div
-            //     className="bg-blue-600 h-full transition-all duration-200"
-            //     style={{ width: `${progress}%` }}
-            //   />
-            // </div>
-            <TableSkeleton></TableSkeleton>
-          )} */}
-
-          {results.length > 0 && (
-            <div className="overflow-x-auto mt-6">
-              <table className="min-w-full bg-white border border-gray-300 rounded-lg overflow-hidden">
-                <thead className="bg-gray-200 text-gray-700">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Sl. No</th>
-                    <th className="px-4 py-2 text-left">Source</th>
-                    <th className="px-4 py-2 text-left">
-                      Label / PII Type
-                    </th>
-                    <th className="px-4 py-2 text-left">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((res, idx) => (
-                    <Fragment key={`${res.filename}-${idx}`}>
-                      <tr className="border-t bg-white hover:bg-gray-50 transition">
-                        <td className="px-4 py-3">{idx + 1}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">
-                          {res.filename || res.table || "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {scanContext === "document"
-                            ? mode === "classify"
-                              ? res.label || "-"
-                              : res.inferred_label || "-"
-                            : res.pii_type || "-"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          <button
-                            onClick={() => toggleMetadata(idx)}
-                            className="text-blue-600 underline"
-                          >
-                            {res.showMetadata ? "Hide" : "Show"} Details
-                          </button>
-                        </td>
-=======
               {imageResults.length > 0 && (
                 <div className="overflow-x-auto mt-6">
                   <table className="min-w-full bg-white border border-gray-300 rounded-lg overflow-hidden">
@@ -406,7 +343,6 @@ const App: React.FC = () => {
                         <th className="px-4 py-2 text-left">Source</th>
                         <th className="px-4 py-2 text-left">Label / PII Type</th>
                         <th className="px-4 py-2 text-left">Details</th>
->>>>>>> document_scaner
                       </tr>
                     </thead>
                     <tbody>
