@@ -27,3 +27,7 @@ dist-ssr
 venv
 venv.model
 myenv
+.env
+env_*
+node_modules/*
+uploads/*

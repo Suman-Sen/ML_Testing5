@@ -18,176 +18,242 @@ app.use(express.json());
 
 // Interfaces
 interface ClientMessage {
-  id: string;
-  type: 'classify' | 'metadata';
+    id: string;
+    type: 'classify' | 'metadata' | 'document-pii';
 }
 
 interface ClassifyResult {
-  filename: string;
-  label: string;
-  metadata: Record<string, any>;
+    filename: string;
+    label: string;
+    metadata: Record<string, any>;
 }
 
 interface MetadataResult {
-  filename: string;
-  inferred_label: string;
-  metadata: Record<string, any>;
+    filename: string;
+    inferred_label: string;
+    metadata: Record<string, any>;
 }
 
 // Helpers
 function chunkArray<T>(arr: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
+    const chunks: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) {
+        chunks.push(arr.slice(i, i + size));
+    }
+    return chunks;
 }
 
 function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+    fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
 ): express.RequestHandler {
-  return (req, res, next) => {
-    fn(req, res, next).catch(next);
-  };
+    return (req, res, next) => {
+        fn(req, res, next).catch(next);
+    };
 }
 
-// Map of active WebSocket connections by requestId
+// WebSocket connection map
 const socketsById = new Map<string, WebSocket>();
 
 // WebSocket setup
 wss.on('connection', (ws) => {
-  let currentId = '';
+    let currentId = '';
 
-  ws.on('message', (message) => {
-    try {
-      const parsed = JSON.parse(message.toString()) as ClientMessage;
-      currentId = parsed.id;
-      socketsById.set(parsed.id, ws);
-    } catch (e) {
-      console.error('Invalid WebSocket message:', message);
-    }
-  });
+    ws.on('message', (message) => {
+        try {
+            const parsed = JSON.parse(message.toString()) as ClientMessage;
+            currentId = parsed.id;
+            socketsById.set(parsed.id, ws);
+        } catch (e) {
+            console.error('Invalid WebSocket message:', message);
+        }
+    });
 
-  ws.on('close', () => {
-    if (currentId) {
-      socketsById.delete(currentId);
-    }
-  });
+    ws.on('close', () => {
+        if (currentId) {
+            socketsById.delete(currentId);
+        }
+    });
 });
 
-// Upload endpoint
+// Upload route for image classification/metadata
 app.post(
-  '/upload',
-  upload.array('images'),
-  asyncHandler(async (req: Request, res: Response) => {
-    const files = req.files as Express.Multer.File[];
-    const id = String(req.query.id);
-    const scanType = String(req.query.type) as 'classify' | 'metadata';
-    const clientWs = socketsById.get(id) || null;
+    '/upload',
+    upload.array('images'),
+    asyncHandler(async (req: Request, res: Response) => {
+        const id = String(req.query.id);
+        const scanType = String(req.query.type) as 'classify' | 'metadata';
+        const clientWs = socketsById.get(id) || null;
 
-    const batches = chunkArray(files, 5);
-    for (const batch of batches) {
-      const results = await Promise.all(
-        batch.map(async (file) => {
-          const form = new FormData();
-          form.append('image', fs.createReadStream(file.path), file.originalname);
-          const url =
-            scanType === 'classify'
-              ? 'http://localhost:6000/predict'
-              : 'http://localhost:6000/metadata';
+        const files = req.files as Express.Multer.File[] | undefined;
 
-          try {
-            const response = await axios.post(url, form, {
-              headers: form.getHeaders(),
-              timeout: 20000,
+        if (!files || files.length === 0) {
+            console.error('No files uploaded.');
+            res.status(400).json({ error: 'No files uploaded' });
+            return;
+        }
+
+        const batches = chunkArray(files, 5);
+        for (const batch of batches) {
+            const results = await Promise.all(
+                batch.map(async (file) => {
+                    const form = new FormData();
+                    form.append('image', fs.createReadStream(file.path), file.originalname);
+                    const url =
+                        scanType === 'classify'
+                            ? 'http://localhost:6000/predict'
+                            : 'http://localhost:6000/metadata';
+
+                    try {
+                        const response = await axios.post(url, form, {
+                            headers: form.getHeaders(),
+                            timeout: 20000,
+                        });
+                        if (scanType === 'classify') {
+                            return {
+                                filename: file.originalname,
+                                label: response.data.label,
+                                metadata: response.data.metadata || {},
+                            } as ClassifyResult;
+                        } else {
+                            return {
+                                filename: file.originalname,
+                                inferred_label: response.data.file_based,
+                                metadata: response.data.metadata || {},
+                            } as MetadataResult;
+                        }
+                    } catch {
+                        return scanType === 'classify'
+                            ? { filename: file.originalname, label: 'Error', metadata: {} }
+                            : { filename: file.originalname, inferred_label: 'Error', metadata: {} };
+                    } finally {
+                        try {
+                            fs.unlinkSync(file.path);
+                        } catch { }
+                    }
+                })
+            );
+
+            if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+                clientWs.send(
+                    JSON.stringify({
+                        requestId: id,
+                        type: scanType,
+                        batch: results,
+                    })
+                );
+            }
+        }
+
+        if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(JSON.stringify({ requestId: id, type: scanType, done: true }));
+        }
+
+        res.status(200).json({ status: 'Uploaded' });
+    })
+);
+
+// DB PII bridge route
+app.post(
+    '/db-pii',
+    asyncHandler(async (req: Request, res: Response) => {
+        const { conn_string, type, table } = req.body;
+        let endpoint = '';
+        const payload: any = { conn_string };
+
+        switch (type) {
+            case 'pii-meta':
+                endpoint = '/metadata-classify';
+                break;
+            case 'pii-full':
+                endpoint = '/full-pii-scan';
+                break;
+            case 'pii-table':
+                endpoint = '/table-pii-scan';
+                payload.table_name = table;
+                break;
+            default:
+                res.status(400).json({ error: 'Invalid PII scan type' });
+                return;
+        }
+
+        try {
+            const response = await axios.post(`http://localhost:5000${endpoint}`, payload);
+            res.json({ data: response.data });
+        } catch (err: any) {
+            console.error('PII Bridge Error:', err.message);
+            console.error('Axios Error Code:', err.code);
+            console.error('Axios Full Error:', err.toJSON?.() || err);
+            console.error('Flask Response (if any):', err?.response?.data);
+            res.status(500).json({ error: 'Failed to query Flask PII service' });
+        }
+    })
+);
+
+// Document PII route with WebSocket support
+app.post(
+    '/document-pii',
+    upload.array('files'),
+    asyncHandler(async (req: Request, res: Response) => {
+        const requestId = String(req.query.id);
+        const clientWs = socketsById.get(requestId) || null;
+
+        const files = req.files as Express.Multer.File[] | undefined;
+
+        if (!files || files.length === 0) {
+            res.status(400).json({ error: 'No files uploaded for document PII' });
+            return;
+        }
+
+        const form = new FormData();
+        files.forEach((file) => {
+            form.append('files', fs.createReadStream(file.path), file.originalname);
+        });
+
+        try {
+            const response = await axios.post('http://localhost:5003/document-upload', form, {
+                headers: form.getHeaders(),
+                timeout: 30000,
             });
-            if (scanType === 'classify') {
-              return {
-                filename: file.originalname,
-                label: response.data.label,
-                metadata: response.data.metadata || {},
-              } as ClassifyResult;
-            } else {
-              return {
-                filename: file.originalname,
-                inferred_label: response.data.file_based,
-                metadata: response.data.metadata || {},
-              } as MetadataResult;
+
+            files.forEach((file) => fs.unlinkSync(file.path));
+
+            if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+                clientWs.send(
+                    JSON.stringify({
+                        requestId,
+                        type: 'document-pii',
+                        results: response.data,
+                        done: true,
+                    })
+                );
             }
-          } catch {
-            if (scanType === 'classify') {
-              return { filename: file.originalname, label: 'Error', metadata: {} };
-            } else {
-              return { filename: file.originalname, inferred_label: 'Error', metadata: {} };
+
+            res.status(200).json({ status: 'PII scan complete' });
+        } catch (err: any) {
+            console.error('Document PII Error:', err.message);
+
+            if (clientWs && clientWs.readyState === WebSocket.OPEN) {
+                clientWs.send(
+                    JSON.stringify({
+                        requestId,
+                        type: 'document-pii',
+                        error: 'Failed to analyze documents for PII',
+                        done: true,
+                    })
+                );
             }
-          } finally {
-            try {
-              fs.unlinkSync(file.path);
-            } catch {}
-          }
-        })
-      );
 
-      if (clientWs && clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(
-          JSON.stringify({
-            requestId: id,
-            type: scanType,
-            batch: results,
-          })
-        );
-      }
-    }
-
-    // Signal end of batches
-    if (clientWs && clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(JSON.stringify({ requestId: id, type: scanType, done: true }));
-    }
-
-    res.status(200).json({ status: 'Uploaded' });
-  })
+            res.status(500).json({ error: 'Failed to analyze documents for PII' });
+        }
+    })
 );
 
-// PII Bridge Route (unchanged HTTP response)
-app.post(
-  '/pii',
-  asyncHandler(async (req: Request, res: Response) => {
-    const { conn_string, type, table } = req.body;
-    let endpoint = '';
-    const payload: any = { conn_string };
-
-    switch (type) {
-      case 'pii-meta':
-        endpoint = '/metadata-classify';
-        break;
-      case 'pii-full':
-        endpoint = '/full-pii-scan';
-        break;
-      case 'pii-table':
-        endpoint = '/table-pii-scan';
-        payload.table_name = table;
-        break;
-      default:
-        res.status(400).json({ error: 'Invalid PII scan type' });
-        return;
-    }
-
-    try {
-      const response = await axios.post(`http://localhost:5000${endpoint}`, payload);
-      res.json({ data: response.data });
-    } catch (err: any) {
-      console.error('PII Bridge Error:', err.message);
-      res.status(500).json({ error: 'Failed to query Flask PII service' });
-    }
-  })
-);
-
-// Fallback for unknown routes
+// Fallback route
 app.use((_req, res) => {
-  res.status(404).send('Not found');
+    res.status(404).send('Not found');
 });
 
 // Start server
 server.listen(port, () => {
-  console.log(`Express server running at http://localhost:${port}`);
+    console.log(`Express server running at http://localhost:${port}`);
 });
