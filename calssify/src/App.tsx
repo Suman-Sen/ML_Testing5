@@ -2,6 +2,14 @@ import React, { useState, useRef, Fragment, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 import NavBar from "./components/ui/NavBar";
+import ModeSelector from "./components/ui/ModeSelector";
+import ResultsTable from "./components/shared/tables/ResultsTable";
+import ImageScanUpload from "./components/ui/ImageScanUpload";
+import DbScanForm from "./components/DbScanForm";
+import DbResultsTable, { type DbResultEntry } from "./components/shared/tables/DbResultsTable";
+import DocumentUploader from "./components/forms/DocumentUploader";
+import DocumentPiiResultsTable from "./components/results/DocumentPiiResultsTable";
+
 const IQ = "/images/IQ.png";
 interface Metadata {
   [key: string]: string | number | null | undefined;
@@ -30,7 +38,9 @@ type ScanTab = "image" | "db" | "document-pii";
 
 const App: React.FC = () => {
   // Section selector
-  const [currentTab, setCurrentTab] = useState<ScanTab>("image");
+  // const [currentTab, setCurrentTab] = useState<ScanTab>("image");
+  const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">("image");
+
 
   //    Image Scan (ML/Filename) State 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -43,8 +53,8 @@ const App: React.FC = () => {
   const [dbConnString, setDbConnString] = useState<string>("");
   const [dbScanType, setDbScanType] = useState<"pii-meta" | "pii-full" | "pii-table">("pii-full");
   const [tableName, setTableName] = useState<string>("");
-  const [dbResults, setDbResults] = useState<any[]>([]);
   const [dbLoading, setDbLoading] = useState<boolean>(false);
+  const [dbResults, setDbResults] = useState<DbResultEntry[]>([]);
 
   //    Document PII Scan State
   const [docFiles, setDocFiles] = useState<File[]>([]);
@@ -267,6 +277,14 @@ const App: React.FC = () => {
     }
   };
 
+  const toggleDbMetadata = (index: number) => {
+    setDbResults(prev =>
+      prev.map((r, i) =>
+        i === index ? { ...r, showMetadata: !r.showMetadata } : r
+      )
+    );
+  };
+
   //        UI SECTIONS
   return (
     <>
@@ -274,123 +292,30 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-gray-100 p-6">
         <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-8">
           <h1 className="text-3xl font-bold text-center mb-8 text-blue-700">ID Scanner</h1>
-
-          <div className="flex justify-center gap-3 mb-8">
-            <button
-              onClick={() => setCurrentTab("image")}
-              className={`px-4 py-2 rounded font-semibold ${currentTab === "image" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
-            >
-              Image Scan
-            </button>
-            <button
-              onClick={() => setCurrentTab("db")}
-              className={`px-4 py-2 rounded font-semibold ${currentTab === "db" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
-            >
-              DB Scan
-            </button>
-            <button
-              onClick={() => setCurrentTab("document-pii")}
-              className={`px-4 py-2 rounded font-semibold ${currentTab === "document-pii" ? "bg-blue-600 text-white" : "bg-gray-200"}`}
-            >
-              Document Scan
-            </button>
+          <div className="container mx-auto p-4">
+            <ModeSelector currentTab={currentTab} setCurrentTab={setCurrentTab} />
           </div>
-
           {/*IMAGE SCAN*/}
           {currentTab === "image" && (
             <section>
-              <h2 className="text-xl font-bold text-blue-800 mb-4">Image Scan</h2>
-              <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                <label htmlFor="file-upload-img" className="text-sm font-medium text-gray-700">
-                  Upload Images
-                </label>
-                <input
-                  id="file-upload-img"
-                  type="file"
-                  multiple
-                  accept="image/*,application/pdf"
-                  onChange={handleImageFileChange}
-                  className="block w-full md:w-auto border border-gray-300 rounded px-4 py-2 bg-white shadow-sm"
-                  title="Upload images or PDF files"
-                  placeholder="Select images or PDFs"
-                />
-                <button
-                  onClick={() => uploadImageScan("classify")}
-                  className="bg-green-600 text-white font-semibold px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-                  disabled={imageLoading || imageFiles.length === 0}
-                >
-                  ML Scan
-                </button>
-                <button
-                  onClick={() => uploadImageScan("metadata")}
-                  className="bg-purple-600 text-white font-semibold px-6 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
-                  disabled={imageLoading || imageFiles.length === 0}
-                >
-                  Filename-based Scan
-                </button>
-              </div>
+              <ImageScanUpload
+                imageLoading={imageLoading}
+                imageFiles={imageFiles}
+                handleImageFileChange={handleImageFileChange}
+                uploadImageScan={uploadImageScan}
+              />
+              {/* TODO: Remove the loader add the skeliton */}
               {imageLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
                   <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `${imageProgress}%` }} />
                 </div>
               )}
               {imageResults.length > 0 && (
-                <div className="overflow-x-auto mt-6">
-                  <table className="min-w-full bg-white border border-gray-300 rounded-lg overflow-hidden">
-                    <thead className="bg-gray-200 text-gray-700">
-                      <tr>
-                        <th className="px-4 py-2 text-left">Sl. No</th>
-                        <th className="px-4 py-2 text-left">Source</th>
-                        <th className="px-4 py-2 text-left">Label / PII Type</th>
-                        <th className="px-4 py-2 text-left">Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {imageResults.map((res, idx) => (
-                        <Fragment key={`${res.filename}-${idx}`}>
-                          <tr className="border-t bg-white hover:bg-gray-50 transition">
-                            <td className="px-4 py-3">{idx + 1}</td>
-                            <td className="px-4 py-3 font-medium text-gray-900">
-                              {res.filename || res.table || "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {imageMode === "classify"
-                                ? res.label || "-"
-                                : res.inferred_label || "-"}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              <button
-                                onClick={() => toggleImageMetadata(idx)}
-                                className="text-blue-600 underline"
-                              >
-                                {res.showMetadata ? "Hide" : "Show"} Details
-                              </button>
-                            </td>
-                          </tr>
-                          {res.showMetadata && (
-                            <tr className="bg-gray-100 border-t">
-                              <td colSpan={4} className="px-6 py-4 text-xs">
-                                <div className="bg-white rounded border p-3 shadow-sm max-w-4xl overflow-x-auto">
-                                  <pre className="whitespace-pre-wrap break-words text-xs text-gray-800">
-                                    {JSON.stringify(
-                                      res.metadata || {
-                                        table: res.table,
-                                        column: res.column,
-                                        value: res.value,
-                                      },
-                                      null,
-                                      2
-                                    )}
-                                  </pre>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ResultsTable
+                  results={imageResults}
+                  imageMode={imageMode}
+                  onToggleMetadata={toggleImageMetadata}
+                />
               )}
             </section>
           )}
@@ -398,119 +323,28 @@ const App: React.FC = () => {
           {/*DB SCAN*/}
           {currentTab === "db" && (
             <section>
-              <h2 className="text-xl font-bold text-blue-800 mb-4">DB Scan</h2>
-              <div className="space-y-4 mb-6">
-                <label className="block text-sm font-medium text-gray-700">
-                  DB Connection String
-                </label>
-                <input
-                  type="text"
-                  value={dbConnString}
-                  onChange={(e) => setDbConnString(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  title="Enter database connection string"
-                  placeholder="Database connection string"
-                />
-                <label htmlFor="scan-type-select" className="block text-sm font-medium text-gray-700">
-                  Scan Type
-                </label>
-                <select
-                  id="scan-type-select"
-                  value={dbScanType}
-                  onChange={(e) => setDbScanType(e.target.value as typeof dbScanType)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="pii-meta">Metadata Only</option>
-                  <option value="pii-full">Full Scan</option>
-                  <option value="pii-table">Single Table</option>
-                </select>
-                {dbScanType === "pii-table" && (
-                  <>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Table Name
-                    </label>
-                    <input
-                      type="text"
-                      value={tableName}
-                      onChange={(e) => setTableName(e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
-                      placeholder="e.g. users_basic"
-                    />
-                  </>
-                )}
-                <button
-                  onClick={runDbScan}
-                  className="bg-green-600 text-white font-semibold px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-                  disabled={dbLoading || !dbConnString}
-                >
-                  Run DB Scan
-                </button>
-              </div>
+              <DbScanForm
+                dbConnString={dbConnString}
+                dbScanType={dbScanType}
+                tableName={tableName}
+                dbLoading={dbLoading}
+                setDbConnString={setDbConnString}
+                setDbScanType={setDbScanType}
+                setTableName={setTableName}
+                runDbScan={runDbScan}
+              />
+              {/* TODO: Remove the loader add the skeliton */}
+
               {dbLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-1">
                   <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `50%` }} />
                 </div>
               )}
+              
               {dbResults.length > 0 && (
                 <div className="overflow-x-auto mt-6">
-                  <table className="min-w-full bg-white border border-gray-300 rounded-lg overflow-hidden">
-                    <thead className="bg-gray-200 text-gray-700">
-                      <tr>
-                        <th className="px-4 py-2 text-left">Sl. No</th>
-                        <th className="px-4 py-2 text-left">Table/File</th>
-                        <th className="px-4 py-2 text-left">PII Type</th>
-                        <th className="px-4 py-2 text-left">Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dbResults.map((res, idx) => (
-                        <Fragment key={`db-${res.filename || res.table || idx}`}>
-                          <tr className="border-t bg-white hover:bg-gray-50 transition">
-                            <td className="px-4 py-3">{idx + 1}</td>
-                            <td className="px-4 py-3 font-medium text-gray-900">{res.filename || res.table || "-"}</td>
-                            <td className="px-4 py-3">{res.pii_type || res.label || res.inferred_label || "-"}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              <button
-                                onClick={() =>
-                                  setDbResults((prev) =>
-                                    prev.map((r, i) =>
-                                      i === idx
-                                        ? { ...r, showMetadata: !r.showMetadata }
-                                        : r
-                                    )
-                                  )
-                                }
-                                className="text-blue-600 underline"
-                              >
-                                {res.showMetadata ? "Hide" : "Show"} Details
-                              </button>
-                            </td>
-                          </tr>
-                          {res.showMetadata && (
-                            <tr className="bg-gray-100 border-t">
-                              <td colSpan={4} className="px-6 py-4 text-xs">
-                                <div className="bg-white rounded border p-3 shadow-sm max-w-4xl overflow-x-auto">
-                                  <pre className="whitespace-pre-wrap break-words text-xs text-gray-800">
-                                    {JSON.stringify(
-                                      res.metadata ||
-                                        {
-                                          table: res.table,
-                                          column: res.column,
-                                          value: res.value,
-                                          pii_type: res.pii_type,
-                                        },
-                                      null,
-                                      
-                                    )}
-                                  </pre>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                  <h2 className="text-xl font-bold text-blue-800 mb-4">Database PII Results</h2>
+                  <DbResultsTable results={dbResults} onToggleMetadata={toggleDbMetadata} />
                 </div>
               )}
             </section>
@@ -519,96 +353,27 @@ const App: React.FC = () => {
           {/*DOCUMENT PII SCAN*/}
           {currentTab === "document-pii" && (
             <section>
-              <h2 className="text-xl font-bold text-blue-800 mb-4">Document PII Scan</h2>
-              <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                <label htmlFor="file-upload-doc" className="text-sm font-medium text-gray-700">
-                  Upload Documents
-                </label>
-                <input
-                  id="file-upload-doc"
-                  type="file"
-                  multiple
-                  accept=".txt,.csv,.pdf,.doc,.docx,.json,.xml,.html"
-                  onChange={handleDocFileChange}
-                  className="block w-full md:w-auto border border-gray-300 rounded px-4 py-2 bg-white shadow-sm"
-                  title="Upload documents/files"
-                  placeholder="Select documents"
-                />
-                <button
-                  onClick={uploadDocumentPii}
-                  className="bg-blue-700 text-white font-semibold px-6 py-2 rounded hover:bg-blue-800 disabled:opacity-50"
-                  disabled={docPiiLoading || docFiles.length === 0}
-                >
-                  Document PII Scan
-                </button>
-              </div>
+              <DocumentUploader
+                docPiiLoading={docPiiLoading}
+                docFiles={docFiles}
+                docPiiProgress={docPiiProgress}
+                handleDocFileChange={handleDocFileChange}
+                uploadDocumentPii={uploadDocumentPii}
+              />
+              {/* TODO: Remove the loader add the skeliton */}
               {docPiiLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
                   <div className="bg-purple-600 h-full transition-all duration-200" style={{ width: `${docPiiProgress}%` }} />
                 </div>
               )}
               {documentPiiResults.length > 0 && (
-                <div className="overflow-x-auto mt-6">
-                  <table className="min-w-full bg-white border border-gray-300 rounded-lg overflow-hidden">
-                    <thead className="bg-gray-200 text-gray-700">
-                      <tr>
-                        <th className="px-4 py-2 text-left">Sl. No</th>
-                        <th className="px-4 py-2 text-left">File</th>
-                        <th className="px-4 py-2 text-left">PII Found</th>
-                        <th className="px-4 py-2 text-left">PII Types</th>
-                        <th className="px-4 py-2 text-left">Show Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {documentPiiResults.map((res: any, idx: number) => {
-                        const piiTypeNames = res.pii_types
-                          ? Object.keys(res.pii_types).filter((k) => res.pii_types[k]?.length)
-                          : [];
-                        return (
-                          <Fragment key={(res.file_name || "docpii") + idx}>
-                            <tr className="border-t bg-white hover:bg-gray-50 transition">
-                              <td className="px-4 py-3">{idx + 1}</td>
-                              <td className="px-4 py-3 font-medium text-gray-900">{res.file_name || "-"}</td>
-                              <td className="px-4 py-3">
-                                {res.pii_found ? (
-                                  <span className="text-green-700 font-bold">Yes</span>
-                                ) : (
-                                  <span className="text-gray-400">No</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                {piiTypeNames.length > 0 ? piiTypeNames.join(", ") : "-"}
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  onClick={() => toggleDocPiiMetadata(idx)}
-                                  className="text-blue-600 underline"
-                                >
-                                  {res.showMetadata ? "Hide" : "Show"} Details
-                                </button>
-                              </td>
-                            </tr>
-                            {res.showMetadata && (
-                              <tr className="bg-gray-100 border-t">
-                                <td colSpan={5} className="px-6 py-4 text-xs">
-                                  <div className="bg-white rounded border p-3 shadow-sm max-w-4xl overflow-x-auto">
-                                    <pre className="whitespace-pre-wrap break-words text-xs text-gray-800">
-                                      {JSON.stringify(res, null, 2)}
-                                    </pre>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {!docPiiLoading && documentPiiResults.length === 0 && (
-                <div className="text-gray-700 py-3">No results for Document PII scan.</div>
-              )}
+              
+              <DocumentPiiResultsTable
+              results={documentPiiResults}
+              loading={docPiiLoading}
+              onToggleMetadata={toggleDocPiiMetadata}
+/>
+            )}
             </section>
           )}
 
