@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function NavBar({ logoSrc }: { logoSrc: string }) {
   return (
     <div className="flex p-2 gap-1.5">

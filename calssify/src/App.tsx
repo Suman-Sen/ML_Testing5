@@ -1,4 +1,4 @@
-import React, { useState, useRef, Fragment, useEffect } from "react";
+import React, { useState, useRef,useEffect } from "react";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
@@ -10,6 +10,7 @@ import DbScanForm from "./components/DbScanForm";
 import DbResultsTable, { type DbResultEntry } from "./components/shared/tables/DbResultsTable";
 import DocumentUploader from "./components/forms/DocumentUploader";
 import DocumentPiiResultsTable from "./components/results/DocumentPiiResultsTable";
+import PiiTypeSelector from "./components/forms/PiiTypeSelector";
 
 const IQ = "/images/IQ.png";
 interface Metadata {
@@ -35,7 +36,7 @@ interface DocumentPiiResult {
   showMetadata?: boolean;
 }
 
-type ScanTab = "image" | "db" | "document-pii";
+// type ScanTab = "image" | "db" | "document-pii";
 
 const App: React.FC = () => {
   // Section selector
@@ -61,6 +62,8 @@ const App: React.FC = () => {
   const [documentPiiResults, setDocumentPiiResults] = useState<DocumentPiiResult[]>([]);
   const [docPiiLoading, setDocPiiLoading] = useState(false);
   const [docPiiProgress, setDocPiiProgress] = useState(0);
+  const [selectedPiiTypes, setSelectedPiiTypes] = useState<string[]>([]);
+
 
   // WebSocket support for each tab
   const wsRef = useRef<WebSocket | null>(null);
@@ -222,12 +225,14 @@ const App: React.FC = () => {
       wsRef.current.close();
       wsRef.current = null;
     }
+
     const socket = new WebSocket("ws://localhost:3000");
     wsRef.current = socket;
 
     socket.onopen = () => {
       socket.send(JSON.stringify({ id, type: "document-pii" }));
     };
+
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.requestId !== id) return;
@@ -239,21 +244,27 @@ const App: React.FC = () => {
         setDocumentPiiResults([{ ...data.results, showMetadata: false }]);
         setDocPiiProgress((prev) => Math.min(prev + 15, 95));
       }
+
       if (data.error) {
-        setDocumentPiiResults([{ file_name: "Error", pii_found: false, error: data.error, showMetadata: false }]);
+        setDocumentPiiResults([
+          { file_name: "Error", pii_found: false, error: data.error, showMetadata: false }
+        ]);
         setDocPiiLoading(false);
         setDocPiiProgress(0);
       }
+
       if (data.done) {
         socket.close();
         setDocPiiProgress(100);
       }
     };
+
     socket.onerror = () => {
       setDocPiiLoading(false);
       setDocPiiProgress(0);
       socket.close();
     };
+
     socket.onclose = () => {
       setTimeout(() => {
         setDocPiiLoading(false);
@@ -263,6 +274,8 @@ const App: React.FC = () => {
 
     const formData = new FormData();
     docFiles.forEach((file) => formData.append("files", file));
+    selectedPiiTypes.forEach((type) => formData.append("pii_types", type)); // Include PII types
+
     try {
       await axios.post(
         `http://localhost:3000/document-pii?id=${id}`,
@@ -278,6 +291,7 @@ const App: React.FC = () => {
       }
     }
   };
+
 
   const toggleDbMetadata = (index: number) => {
     setDbResults(prev =>
@@ -351,6 +365,13 @@ const App: React.FC = () => {
           {/*DOCUMENT PII SCAN*/}
           {currentTab === "document-pii" && (
             <section>
+              <h2 className="text-xl font-bold text-blue-800 mb-4">Document PII Scan</h2>
+
+              <PiiTypeSelector
+                selected={selectedPiiTypes}
+                setSelected={setSelectedPiiTypes}
+              />
+
               <DocumentUploader
                 docPiiLoading={docPiiLoading}
                 docFiles={docFiles}
@@ -358,6 +379,7 @@ const App: React.FC = () => {
                 handleDocFileChange={handleDocFileChange}
                 uploadDocumentPii={uploadDocumentPii}
               />
+
               {docPiiLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
                   <div className="bg-purple-600 h-full transition-all duration-200" style={{ width: `${docPiiProgress}%` }} />

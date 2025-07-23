@@ -11,7 +11,7 @@ interface DocumentUploaderProps {
 const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   docPiiLoading,
   docFiles,
-  docPiiProgress,
+  // docPiiProgress,
   handleDocFileChange,
   uploadDocumentPii,
 }) => {

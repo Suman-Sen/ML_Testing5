@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function TableSkeleton() {
     return (
         <div className="overflow-x-auto mt-6 animate-pulse">
