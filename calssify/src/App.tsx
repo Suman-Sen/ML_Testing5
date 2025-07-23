@@ -1,4 +1,5 @@
 import React, { useState, useRef, Fragment, useEffect } from "react";
+import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
 import NavBar from "./components/ui/NavBar";
@@ -40,7 +41,6 @@ const App: React.FC = () => {
   // Section selector
   // const [currentTab, setCurrentTab] = useState<ScanTab>("image");
   const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">("image");
-
 
   //    Image Scan (ML/Filename) State 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -153,10 +153,11 @@ const App: React.FC = () => {
     const formData = new FormData();
     imageFiles.forEach((file) => formData.append("images", file));
     try {
-      await fetch(`http://localhost:3000/upload?id=${id}&type=${scanType}`, {
-        method: "POST",
-        body: formData,
-      });
+      await axios.post(
+        `http://localhost:3000/upload?id=${id}&type=${scanType}`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
     } catch (err) {
       setImageLoading(false);
       setImageProgress(0);
@@ -173,16 +174,16 @@ const App: React.FC = () => {
     setDbLoading(true);
     setDbResults([]);
     try {
-      const res = await fetch("http://localhost:3000/db-pii", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await axios.post(
+        "http://localhost:3000/db-pii",
+        {
           conn_string: dbConnString,
           type: dbScanType,
           table: dbScanType === "pii-table" ? tableName : undefined,
-        }),
-      });
-      const json = await res.json();
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      const json = res.data;
       setDbResults(Array.isArray(json.data) ? json.data : []);
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -263,10 +264,11 @@ const App: React.FC = () => {
     const formData = new FormData();
     docFiles.forEach((file) => formData.append("files", file));
     try {
-      await fetch(`http://localhost:3000/document-pii?id=${id}`, {
-        method: "POST",
-        body: formData,
-      });
+      await axios.post(
+        `http://localhost:3000/document-pii?id=${id}`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
     } catch (err) {
       setDocPiiLoading(false);
       setDocPiiProgress(0);
@@ -304,7 +306,6 @@ const App: React.FC = () => {
                 handleImageFileChange={handleImageFileChange}
                 uploadImageScan={uploadImageScan}
               />
-              {/* TODO: Remove the loader add the skeliton */}
               {imageLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
                   <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `${imageProgress}%` }} />
@@ -333,14 +334,11 @@ const App: React.FC = () => {
                 setTableName={setTableName}
                 runDbScan={runDbScan}
               />
-              {/* TODO: Remove the loader add the skeliton */}
-
               {dbLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-1">
                   <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `50%` }} />
                 </div>
               )}
-              
               {dbResults.length > 0 && (
                 <div className="overflow-x-auto mt-6">
                   <h2 className="text-xl font-bold text-blue-800 mb-4">Database PII Results</h2>
@@ -360,20 +358,18 @@ const App: React.FC = () => {
                 handleDocFileChange={handleDocFileChange}
                 uploadDocumentPii={uploadDocumentPii}
               />
-              {/* TODO: Remove the loader add the skeliton */}
               {docPiiLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
                   <div className="bg-purple-600 h-full transition-all duration-200" style={{ width: `${docPiiProgress}%` }} />
                 </div>
               )}
               {documentPiiResults.length > 0 && (
-              
-              <DocumentPiiResultsTable
-              results={documentPiiResults}
-              loading={docPiiLoading}
-              onToggleMetadata={toggleDocPiiMetadata}
-/>
-            )}
+                <DocumentPiiResultsTable
+                  results={documentPiiResults}
+                  loading={docPiiLoading}
+                  onToggleMetadata={toggleDocPiiMetadata}
+                />
+              )}
             </section>
           )}
 
