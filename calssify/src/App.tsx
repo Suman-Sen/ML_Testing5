@@ -1,4 +1,4 @@
-import React, { useState, useRef,useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
@@ -171,30 +171,39 @@ const App: React.FC = () => {
     }
   };
 
-  //                DB Scan
+  //  DB Scan
   const runDbScan = async () => {
     if (!dbConnString) return;
     setDbLoading(true);
     setDbResults([]);
+
+    // Build the payload only including pii_types if necessary
+    const payload: any = {
+      conn_string: dbConnString,
+      type: dbScanType,
+      table: tableName.toLowerCase(),
+    };
+
+    // Only add pii_types property if at least one PII type is selected
+    if (selectedPiiTypes.length > 0) {
+      payload.pii_types = selectedPiiTypes;
+    }
+
     try {
       const res = await axios.post(
         "http://localhost:3000/db-pii",
-        {
-          conn_string: dbConnString,
-          type: dbScanType,
-          table: dbScanType === "pii-table" ? tableName : undefined,
-        },
+        payload,
         { headers: { "Content-Type": "application/json" } }
       );
       const json = res.data;
       setDbResults(Array.isArray(json.data) ? json.data : []);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("DB scan failed:", err);
     } finally {
       setDbLoading(false);
     }
   };
+
 
   //      Document PII Scan 
   const handleDocFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,7 +356,10 @@ const App: React.FC = () => {
                 setDbScanType={setDbScanType}
                 setTableName={setTableName}
                 runDbScan={runDbScan}
+                selectedPiiTypes={selectedPiiTypes}            // <-- Add this
+                setSelectedPiiTypes={setSelectedPiiTypes}      // <-- And this
               />
+
               {dbLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-1">
                   <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `50%` }} />
