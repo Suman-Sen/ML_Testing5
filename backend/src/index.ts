@@ -166,7 +166,7 @@ app.post(
 app.post(
     '/db-pii',
     asyncHandler(async (req: Request, res: Response) => {
-        const { conn_string, type, table } = req.body;
+        const { conn_string, type, table, pii_types } = req.body;
         let endpoint = '';
         const payload: any = { conn_string };
 
@@ -186,18 +186,20 @@ app.post(
                 return;
         }
 
+        if (pii_types) {
+            payload.pii_types = pii_types;
+        }
+
         try {
             const response = await axios.post(`http://localhost:5000${endpoint}`, payload);
             res.json({ data: response.data });
         } catch (err: any) {
             console.error('PII Bridge Error:', err.message);
-            console.error('Axios Error Code:', err.code);
-            console.error('Axios Full Error:', err.toJSON?.() || err);
-            console.error('Flask Response (if any):', err?.response?.data);
             res.status(500).json({ error: 'Failed to query Flask PII service' });
         }
     })
 );
+
 
 // Document PII route with WebSocket support
 // app.post(
