@@ -12,6 +12,12 @@ const PII_TYPES = [
   "bank_account", "vehicle_reg", "employee_id", "medical_record", "insurance_policy"
 ];
 
+const formatLabel = (type: string) =>
+  type
+    .split("_")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
 const PiiTypeSelector: React.FC<PiiTypeSelectorProps> = ({ selected, setSelected }) => {
   const handleToggle = (type: string) => {
     if (selected.includes(type)) {
@@ -33,7 +39,7 @@ const PiiTypeSelector: React.FC<PiiTypeSelectorProps> = ({ selected, setSelected
               onChange={() => handleToggle(type)}
               className="accent-blue-600"
             />
-            {type}
+            <span>{formatLabel(type)}</span>
           </label>
         ))}
       </div>
