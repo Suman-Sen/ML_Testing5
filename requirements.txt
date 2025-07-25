@@ -16,3 +16,4 @@ sqlalchemy
 exifread
 keras
 tensorflow
+gunicorn

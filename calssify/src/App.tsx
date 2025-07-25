@@ -13,9 +13,11 @@ import DocumentPiiResultsTable from "./components/results/DocumentPiiResultsTabl
 import PiiTypeSelector from "./components/forms/PiiTypeSelector";
 
 const IQ = "/images/IQ.png";
+
 interface Metadata {
   [key: string]: string | number | null | undefined;
 }
+
 interface ClassificationResult {
   filename: string;
   label?: string;
@@ -27,6 +29,7 @@ interface ClassificationResult {
   value?: string | number | null;
   showMetadata?: boolean;
 }
+
 interface DocumentPiiResult {
   file_name: string;
   pii_found: boolean;
@@ -36,34 +39,30 @@ interface DocumentPiiResult {
   showMetadata?: boolean;
 }
 
-// type ScanTab = "image" | "db" | "document-pii";
-
 const App: React.FC = () => {
   // Section selector
-  // const [currentTab, setCurrentTab] = useState<ScanTab>("image");
   const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">("image");
 
-  //    Image Scan (ML/Filename) State 
+  // Image Scan State
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imageResults, setImageResults] = useState<ClassificationResult[]>([]);
   const [imageProgress, setImageProgress] = useState<number>(0);
   const [imageLoading, setImageLoading] = useState<boolean>(false);
   const [imageMode, setImageMode] = useState<"classify" | "metadata">("classify");
 
-  //    DB Scan State
+  // DB Scan State
   const [dbConnString, setDbConnString] = useState<string>("");
   const [dbScanType, setDbScanType] = useState<"pii-meta" | "pii-full" | "pii-table">("pii-full");
   const [tableName, setTableName] = useState<string>("");
   const [dbLoading, setDbLoading] = useState<boolean>(false);
   const [dbResults, setDbResults] = useState<DbResultEntry[]>([]);
 
-  //    Document PII Scan State
+  // Document PII Scan State
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [documentPiiResults, setDocumentPiiResults] = useState<DocumentPiiResult[]>([]);
   const [docPiiLoading, setDocPiiLoading] = useState(false);
   const [docPiiProgress, setDocPiiProgress] = useState(0);
   const [selectedPiiTypes, setSelectedPiiTypes] = useState<string[]>([]);
-
 
   // WebSocket support for each tab
   const wsRef = useRef<WebSocket | null>(null);
@@ -92,7 +91,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  //    Image Scan (ML/Filename)
+  // Image Scan handlers
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setImageFiles(Array.from(e.target.files));
@@ -126,8 +125,28 @@ const App: React.FC = () => {
 
     socket.onopen = () => {
       socket.send(JSON.stringify({ id, type: scanType }));
+
+      setTimeout(async () => {
+        const formData = new FormData();
+        imageFiles.forEach((file) => formData.append("images", file));
+
+        try {
+          await axios.post(`http://localhost:3000/upload?id=${id}&type=${scanType}`, formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+        } catch (err) {
+          setImageLoading(false);
+          setImageProgress(0);
+          if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+          }
+        }
+      }, 100);
     };
+
     socket.onmessage = (event) => {
+      console.log("Message received from ws:", event.data);
       const data = JSON.parse(event.data);
       if (data.requestId !== id) return;
       if (data.done) {
@@ -140,11 +159,13 @@ const App: React.FC = () => {
       ]);
       setImageProgress((prev) => Math.min(prev + 15, 95));
     };
+
     socket.onerror = () => {
       setImageLoading(false);
       setImageProgress(0);
       socket.close();
     };
+
     socket.onclose = () => {
       setImageProgress(100);
       setTimeout(() => {
@@ -152,39 +173,20 @@ const App: React.FC = () => {
         setImageProgress(0);
       }, 500);
     };
-
-    const formData = new FormData();
-    imageFiles.forEach((file) => formData.append("images", file));
-    try {
-      await axios.post(
-        `http://localhost:3000/upload?id=${id}&type=${scanType}`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-    } catch (err) {
-      setImageLoading(false);
-      setImageProgress(0);
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    }
   };
 
-  //  DB Scan
+  // DB Scan
   const runDbScan = async () => {
     if (!dbConnString) return;
     setDbLoading(true);
     setDbResults([]);
 
-    // Build the payload only including pii_types if necessary
     const payload: any = {
       conn_string: dbConnString,
       type: dbScanType,
       table: tableName.toLowerCase(),
     };
 
-    // Only add pii_types property if at least one PII type is selected
     if (selectedPiiTypes.length > 0) {
       payload.pii_types = selectedPiiTypes;
     }
@@ -204,8 +206,7 @@ const App: React.FC = () => {
     }
   };
 
-
-  //      Document PII Scan 
+  // Document PII Scan handlers
   const handleDocFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setDocFiles(Array.from(e.target.files));
@@ -240,23 +241,50 @@ const App: React.FC = () => {
 
     socket.onopen = () => {
       socket.send(JSON.stringify({ id, type: "document-pii" }));
+
+      setTimeout(async () => {
+        const formData = new FormData();
+        docFiles.forEach((file) => formData.append("files", file));
+        selectedPiiTypes.forEach((type) => formData.append("pii_types", type));
+
+        try {
+          await axios.post(
+            `http://localhost:3000/document-pii?id=${id}`,
+            formData,
+            { headers: { "Content-Type": "multipart/form-data" } }
+          );
+        } catch (err) {
+          setDocPiiLoading(false);
+          setDocPiiProgress(0);
+          if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+          }
+        }
+      }, 100);
     };
 
     socket.onmessage = (event) => {
+      console.log("Document PII WS message received:", event.data);
       const data = JSON.parse(event.data);
       if (data.requestId !== id) return;
 
-      if (Array.isArray(data.results)) {
-        setDocumentPiiResults(data.results.map((r: any) => ({ ...r, showMetadata: false })));
+      if (Array.isArray(data.batch)) {
+        setDocumentPiiResults(data.batch.map((r: any) => ({ ...r, showMetadata: false })));
         setDocPiiProgress((prev) => Math.min(prev + 15, 95));
-      } else if (data.results) {
-        setDocumentPiiResults([{ ...data.results, showMetadata: false }]);
+      } else if (data.batch) {
+        setDocumentPiiResults([{ ...data.batch, showMetadata: false }]);
         setDocPiiProgress((prev) => Math.min(prev + 15, 95));
       }
 
       if (data.error) {
         setDocumentPiiResults([
-          { file_name: "Error", pii_found: false, error: data.error, showMetadata: false }
+          {
+            file_name: "Error",
+            pii_found: false,
+            error: data.error,
+            showMetadata: false,
+          },
         ]);
         setDocPiiLoading(false);
         setDocPiiProgress(0);
@@ -280,27 +308,7 @@ const App: React.FC = () => {
         setDocPiiProgress(0);
       }, 500);
     };
-
-    const formData = new FormData();
-    docFiles.forEach((file) => formData.append("files", file));
-    selectedPiiTypes.forEach((type) => formData.append("pii_types", type)); // Include PII types
-
-    try {
-      await axios.post(
-        `http://localhost:3000/document-pii?id=${id}`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-    } catch (err) {
-      setDocPiiLoading(false);
-      setDocPiiProgress(0);
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    }
   };
-
 
   const toggleDbMetadata = (index: number) => {
     setDbResults(prev =>
@@ -310,7 +318,8 @@ const App: React.FC = () => {
     );
   };
 
-  //        UI SECTIONS
+  // Return your UI here (unchanged JSX; include NavBar, ModeSelector, sections)
+
   return (
     <>
       <NavBar logoSrc={IQ} />
@@ -320,7 +329,6 @@ const App: React.FC = () => {
           <div className="container mx-auto p-4">
             <ModeSelector currentTab={currentTab} setCurrentTab={setCurrentTab} />
           </div>
-          {/*IMAGE SCAN*/}
           {currentTab === "image" && (
             <section>
               <ImageScanUpload
@@ -344,7 +352,6 @@ const App: React.FC = () => {
             </section>
           )}
 
-          {/*DB SCAN*/}
           {currentTab === "db" && (
             <section>
               <DbScanForm
@@ -356,10 +363,9 @@ const App: React.FC = () => {
                 setDbScanType={setDbScanType}
                 setTableName={setTableName}
                 runDbScan={runDbScan}
-                selectedPiiTypes={selectedPiiTypes}            // <-- Add this
-                setSelectedPiiTypes={setSelectedPiiTypes}      // <-- And this
+                selectedPiiTypes={selectedPiiTypes}
+                setSelectedPiiTypes={setSelectedPiiTypes}
               />
-
               {dbLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-1">
                   <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `50%` }} />
@@ -374,7 +380,6 @@ const App: React.FC = () => {
             </section>
           )}
 
-          {/*DOCUMENT PII SCAN*/}
           {currentTab === "document-pii" && (
             <section>
               <h2 className="text-xl font-bold text-blue-800 mb-4">Document PII Scan</h2>
@@ -406,7 +411,6 @@ const App: React.FC = () => {
               )}
             </section>
           )}
-
         </div>
       </div>
     </>
