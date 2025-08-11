@@ -7,7 +7,9 @@ import ModeSelector from "./components/ui/ModeSelector";
 import ResultsTable from "./components/shared/tables/ResultsTable";
 import ImageScanUpload from "./components/ui/ImageScanUpload";
 import DbScanForm from "./components/DbScanForm";
-import DbResultsTable, { type DbResultEntry } from "./components/shared/tables/DbResultsTable";
+import DbResultsTable, {
+  type DbResultEntry,
+} from "./components/shared/tables/DbResultsTable";
 import DocumentUploader from "./components/forms/DocumentUploader";
 import DocumentPiiResultsTable from "./components/results/DocumentPiiResultsTable";
 import PiiTypeSelector from "./components/forms/PiiTypeSelector";
@@ -41,25 +43,33 @@ interface DocumentPiiResult {
 
 const App: React.FC = () => {
   // Section selector
-  const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">("image");
+  const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">(
+    "image"
+  );
 
   // Image Scan State
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imageResults, setImageResults] = useState<ClassificationResult[]>([]);
   const [imageProgress, setImageProgress] = useState<number>(0);
   const [imageLoading, setImageLoading] = useState<boolean>(false);
-  const [imageMode, setImageMode] = useState<"classify" | "metadata">("classify");
+  const [imageMode, setImageMode] = useState<"classify" | "metadata">(
+    "classify"
+  );
 
   // DB Scan State
   const [dbConnString, setDbConnString] = useState<string>("");
-  const [dbScanType, setDbScanType] = useState<"pii-meta" | "pii-full" | "pii-table">("pii-full");
+  const [dbScanType, setDbScanType] = useState<
+    "pii-meta" | "pii-full" | "pii-table"
+  >("pii-full");
   const [tableName, setTableName] = useState<string>("");
   const [dbLoading, setDbLoading] = useState<boolean>(false);
   const [dbResults, setDbResults] = useState<DbResultEntry[]>([]);
 
   // Document PII Scan State
   const [docFiles, setDocFiles] = useState<File[]>([]);
-  const [documentPiiResults, setDocumentPiiResults] = useState<DocumentPiiResult[]>([]);
+  const [documentPiiResults, setDocumentPiiResults] = useState<
+    DocumentPiiResult[]
+  >([]);
   const [docPiiLoading, setDocPiiLoading] = useState(false);
   const [docPiiProgress, setDocPiiProgress] = useState(0);
   const [selectedPiiTypes, setSelectedPiiTypes] = useState<string[]>([]);
@@ -131,9 +141,13 @@ const App: React.FC = () => {
         imageFiles.forEach((file) => formData.append("images", file));
 
         try {
-          await axios.post(`http://localhost:3000/upload?id=${id}&type=${scanType}`, formData, {
-            headers: { "Content-Type": "multipart/form-data" }
-          });
+          await axios.post(
+            `http://localhost:3000/upload?id=${id}&type=${scanType}`,
+            formData,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+            }
+          );
         } catch (err) {
           setImageLoading(false);
           setImageProgress(0);
@@ -192,11 +206,9 @@ const App: React.FC = () => {
     }
 
     try {
-      const res = await axios.post(
-        "http://localhost:3000/db-pii",
-        payload,
-        { headers: { "Content-Type": "application/json" } }
-      );
+      const res = await axios.post("http://localhost:3000/db-pii", payload, {
+        headers: { "Content-Type": "application/json" },
+      });
       const json = res.data;
       setDbResults(Array.isArray(json.data) ? json.data : []);
     } catch (err) {
@@ -270,7 +282,9 @@ const App: React.FC = () => {
       if (data.requestId !== id) return;
 
       if (Array.isArray(data.batch)) {
-        setDocumentPiiResults(data.batch.map((r: any) => ({ ...r, showMetadata: false })));
+        setDocumentPiiResults(
+          data.batch.map((r: any) => ({ ...r, showMetadata: false }))
+        );
         setDocPiiProgress((prev) => Math.min(prev + 15, 95));
       } else if (data.batch) {
         setDocumentPiiResults([{ ...data.batch, showMetadata: false }]);
@@ -311,7 +325,7 @@ const App: React.FC = () => {
   };
 
   const toggleDbMetadata = (index: number) => {
-    setDbResults(prev =>
+    setDbResults((prev) =>
       prev.map((r, i) =>
         i === index ? { ...r, showMetadata: !r.showMetadata } : r
       )
@@ -325,9 +339,18 @@ const App: React.FC = () => {
       <NavBar logoSrc={IQ} />
       <div className="min-h-screen bg-gray-100 p-6">
         <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-8">
-          <h1 className="text-3xl font-bold text-center mb-8 text-blue-700">ID Scanner</h1>
+          {/* <h1 className="text-3xl font-bold text-center mb-8 text-blue-700">ID Scanner</h1> */}
+          <h1 className="text-3xl font-bold text-center mb-8 text-blue-700">
+            {currentTab === "image" && "ID Scan"}
+            {currentTab === "db" && "Database Scan"}
+            {currentTab === "document-pii" && "Document Scan"}
+          </h1>
+
           <div className="container mx-auto p-4">
-            <ModeSelector currentTab={currentTab} setCurrentTab={setCurrentTab} />
+            <ModeSelector
+              currentTab={currentTab}
+              setCurrentTab={setCurrentTab}
+            />
           </div>
           {currentTab === "image" && (
             <section>
@@ -339,7 +362,10 @@ const App: React.FC = () => {
               />
               {imageLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
-                  <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `${imageProgress}%` }} />
+                  <div
+                    className="bg-blue-600 h-full transition-all duration-200"
+                    style={{ width: `${imageProgress}%` }}
+                  />
                 </div>
               )}
               {imageResults.length > 0 && (
@@ -368,13 +394,21 @@ const App: React.FC = () => {
               />
               {dbLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-1">
-                  <div className="bg-blue-600 h-full transition-all duration-200" style={{ width: `50%` }} />
+                  <div
+                    className="bg-blue-600 h-full transition-all duration-200"
+                    style={{ width: `50%` }}
+                  />
                 </div>
               )}
               {dbResults.length > 0 && (
                 <div className="overflow-x-auto mt-6">
-                  <h2 className="text-xl font-bold text-blue-800 mb-4">Database PII Results</h2>
-                  <DbResultsTable results={dbResults} onToggleMetadata={toggleDbMetadata} />
+                  <h2 className="text-xl font-bold text-blue-800 mb-4">
+                    Database PII Results
+                  </h2>
+                  <DbResultsTable
+                    results={dbResults}
+                    onToggleMetadata={toggleDbMetadata}
+                  />
                 </div>
               )}
             </section>
@@ -382,7 +416,9 @@ const App: React.FC = () => {
 
           {currentTab === "document-pii" && (
             <section>
-              <h2 className="text-xl font-bold text-blue-800 mb-4">Document PII Scan</h2>
+              <h2 className="text-xl font-bold text-blue-800 mb-4">
+                Document PII Scan
+              </h2>
 
               <PiiTypeSelector
                 selected={selectedPiiTypes}
@@ -399,7 +435,10 @@ const App: React.FC = () => {
 
               {docPiiLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
-                  <div className="bg-purple-600 h-full transition-all duration-200" style={{ width: `${docPiiProgress}%` }} />
+                  <div
+                    className="bg-purple-600 h-full transition-all duration-200"
+                    style={{ width: `${docPiiProgress}%` }}
+                  />
                 </div>
               )}
               {documentPiiResults.length > 0 && (

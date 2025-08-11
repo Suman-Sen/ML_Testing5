@@ -9,20 +9,24 @@ import fitz  # PyMuPDF
 
 app = Flask(__name__)
 try:
-    model = load_model("models/mobilenetv3large_model_e75_regularized_tune.keras")
-    classes = ['Aadhaar', 'PAN', 'Passport']
+    model = load_model("models/id_document_classifier_dataset.keras")
+    classes = ['Pan card', 'aadhar', 'passport']
 except Exception as e:
     raise RuntimeError(f"Failed to load ML model: {e}")
 
 # Utility Functions
+# from tensorflow.keras.applications.mobilenet_v3 import preprocess_input
+# from tensorflow.keras.preprocessing import image
 
 def preprocess_image(image_bytes):
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB").resize((224, 224))
-        arr = np.array(img) / 255.0
-        return np.expand_dims(arr, axis=0)
+        img_array = image.img_to_array(img)
+        img_array = preprocess_input(img_array)
+        return np.expand_dims(img_array, axis=0)
     except Exception as e:
         raise RuntimeError(f"Image preprocessing failed: {e}")
+
 
 def infer_from_filename(filename):
     name = filename.lower()
@@ -125,32 +129,32 @@ def predict():
     })
 
 
-@app.route('/metadata', methods=['POST'])
-def file_based_scan():
-    file = request.files.get('image')
-    if not file:
-        return jsonify({'error': 'No image provided'}), 400
+# @app.route('/metadata', methods=['POST'])
+# def file_based_scan():
+#     file = request.files.get('image')
+#     if not file:
+#         return jsonify({'error': 'No image provided'}), 400
 
-    filename = file.filename.lower()
+#     filename = file.filename.lower()
 
-    try:
-        raw = file.read()
-        if filename.endswith(".pdf"):
-            pdf_img = pdf_to_image(raw)  # validate if can be opened
-            metadata = extract_pdf_metadata(raw)
-        else:
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
-            metadata = extract_image_metadata(raw)
-    except Exception as e:
-        return jsonify({'error': 'Failed to process file', 'details': str(e)}), 500
+#     try:
+#         raw = file.read()
+#         if filename.endswith(".pdf"):
+#             pdf_img = pdf_to_image(raw)  # validate if can be opened
+#             metadata = extract_pdf_metadata(raw)
+#         else:
+#             img = Image.open(io.BytesIO(raw)).convert("RGB")
+#             metadata = extract_image_metadata(raw)
+#     except Exception as e:
+#         return jsonify({'error': 'Failed to process file', 'details': str(e)}), 500
 
-    file_based = infer_from_filename(filename)
+#     file_based = infer_from_filename(filename)
 
-    return jsonify({
-        'filename': file.filename,
-        'file_based': file_based if file_based else 'Unknown',
-        'metadata': metadata
-    })
+    # return jsonify({
+    #     'filename': file.filename,
+    #     'file_based': file_based if file_based else 'Unknown',
+    #     'metadata': metadata
+    # })
 
 #Run Server
 if __name__ == '__main__':

@@ -17,3 +17,4 @@ exifread
 keras
 tensorflow
 gunicorn
+psycopg2

@@ -37,13 +37,13 @@ const ImageScanUpload: React.FC<ImageScanUploadProps> = ({
         >
           ML Scan
         </button>
-        <button
+        {/* <button
           onClick={() => uploadImageScan("metadata")}
           className="bg-purple-600 text-white font-semibold px-6 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
           disabled={imageLoading || imageFiles.length === 0}
         >
           Filename-based Scan
-        </button>
+        </button> */}
       </div>
     </>
   );
