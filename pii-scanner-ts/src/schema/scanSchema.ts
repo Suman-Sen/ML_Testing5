@@ -1,24 +1,30 @@
 import { z } from "zod";
 import { PII_PATTERNS } from "../utils/regexRules";
+import { ta } from "zod/v4/locales/index.cjs";
 
 
-const db_type = z.enum(["POSTGRES", "MYSQL", "ORACLE"]);
+// Create a Zod enum from the keys of PII_PATTERNS
+const piiTypeEnum = z.enum(Object.keys(PII_PATTERNS) as [keyof typeof PII_PATTERNS, ...string[]]);
+
+const db_type = z.enum(["POSTGRES", "MYSQL", "ORACLE",'postgres', 'mysql', 'oracle']);
 
 
 export const metadataSchema = z.object({
     conn_string: z.string().min(5),
-    db_type: db_type
+    db_type: db_type.optional()
 });
 
 export const fullPiiScanSchema = z.object({
     conn_string: z.string().min(5),
-    pii_type: PII_PATTERNS,
-    db_type: db_type
+    pii_type: z.array(piiTypeEnum).optional(),
+    db_type: db_type.optional()
 
 })
 
 export const tablePiiSchema = z.object({
     conn_string: z.string().min(5),
-    db_type: db_type,
-    pii_type: PII_PATTERNS
+    table_name: z.string().min(2).max(100),
+    db_type: db_type.optional(),
+    pii_type: z.array(piiTypeEnum).optional(),
+
 })
