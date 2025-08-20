@@ -2,10 +2,12 @@ import express from 'express';
 import { createPool } from '../services/db';
 import { scanRow } from '../services/piiScanner';
 import { PII_PATTERNS } from '../utils/regexRules';
+import { validator } from '../middleware/requestValidator';
+import { fullPiiScanSchema, metadataSchema, tablePiiSchema } from '../schema/scanSchema';
 
 const router = express.Router();
 
-router.post('/metadata-classify', async (req, res) => {
+router.post('/metadata-classify', validator(metadataSchema), async (req, res) => {
     try {
         const { conn_string } = req.body;
         const pool = createPool(conn_string);
@@ -37,7 +39,7 @@ router.post('/metadata-classify', async (req, res) => {
     }
 });
 
-router.post('/full-pii-scan', async (req, res) => {
+router.post('/full-pii-scan', validator(fullPiiScanSchema), async (req, res) => {
     try {
         const { conn_string, pii_types } = req.body;
         const pool = createPool(conn_string);
@@ -64,7 +66,7 @@ router.post('/full-pii-scan', async (req, res) => {
     }
 });
 
-router.post('/table-pii-scan', async (req, res) => {
+router.post('/table-pii-scan', validator(tablePiiSchema), async (req, res) => {
     try {
         const { conn_string, table_name, pii_types } = req.body;
         const pool = createPool(conn_string);
