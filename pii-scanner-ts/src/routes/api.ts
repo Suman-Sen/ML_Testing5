@@ -1,0 +1,86 @@
+import express from 'express';
+import { createPool } from '../services/db';
+import { scanRow } from '../services/piiScanner';
+import { PII_PATTERNS } from '../utils/regexRules';
+
+const router = express.Router();
+
+router.post('/metadata-classify', async (req, res) => {
+    try {
+        const { conn_string } = req.body;
+        const pool = createPool(conn_string);
+        const client = await pool.connect();
+        const tables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public'`);
+        const metadata = [];
+
+        for (const row of tables.rows) {
+            const cols = await client.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name='${row.table_name}'`);
+            for (const col of cols.rows) {
+                metadata.push({
+                    table: row.table_name,
+                    column: col.column_name,
+                    type: col.data_type,
+                    pii_type: Object.keys(PII_PATTERNS).find(p => col.column_name.toLowerCase().includes(p)) || null
+                });
+            }
+        }
+
+        client.release();
+        res.json(metadata).status(200);
+
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error(`Error in /metadata-classify: ${error.message}`);
+        } else {
+            console.error(`Error in /metadata-classify: ${String(error)}`);
+        }
+    }
+});
+
+router.post('/full-pii-scan', async (req, res) => {
+    try {
+        const { conn_string, pii_types } = req.body;
+        const pool = createPool(conn_string);
+        const client = await pool.connect();
+        const tables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public'`);
+        const results = [];
+
+        for (const row of tables.rows) {
+            const data = await client.query(`SELECT * FROM ${row.table_name} LIMIT 100`);
+            for (const record of data.rows) {
+                results.push(...scanRow(record, pii_types));
+            }
+        }
+
+        client.release();
+        res.json(results).status(200);
+
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error(`Error in /full-pii-scan: ${error.message}`);
+        } else {
+            console.error(`Error in /full-pii-scan: ${String(error)}`);
+        }
+    }
+});
+
+router.post('/table-pii-scan', async (req, res) => {
+    try {
+        const { conn_string, table_name, pii_types } = req.body;
+        const pool = createPool(conn_string);
+        const client = await pool.connect();
+        const data = await client.query(`SELECT * FROM ${table_name} LIMIT 100`);
+        //   @ts-ignore
+        const results = data.rows.flatMap(row => scanRow(row, pii_types));
+        client.release();
+        res.json(results).status(200);
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error(`Error in /table-pii-scan: ${error.message}`);
+        } else {
+            console.error(`Error in /table-pii-scan: ${String(error)}`);
+        }
+    }
+});
+
+export default router;
