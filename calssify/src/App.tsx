@@ -190,6 +190,34 @@ const App: React.FC = () => {
   };
 
   // DB Scan
+  //   const runDbScan = async () => {
+  //     if (!dbConnString) return;
+  //     setDbLoading(true);
+  //     setDbResults([]);
+
+  //     const payload: any = {
+  //       conn_string: dbConnString,
+  //       type: dbScanType,
+  //       table: tableName.toLowerCase(),
+  //     };
+
+  //     if (selectedPiiTypes.length > 0) {
+  //       payload.pii_types = selectedPiiTypes;
+  //     }
+
+  //     try {
+  //       const res = await axios.post("http://localhost:3000/db-pii", payload, {
+  //         headers: { "Content-Type": "application/json" },
+  //       });
+  //       const json = res.data;
+  //       setDbResults(Array.isArray(json.data) ? json.data : []);
+  //       console.log(dbResults);
+  //     } catch (err) {
+  //       console.error("DB scan failed:", err);
+  //     } finally {
+  //       setDbLoading(false);
+  //     }
+  //   };
   const runDbScan = async () => {
     if (!dbConnString) return;
     setDbLoading(true);
@@ -197,9 +225,13 @@ const App: React.FC = () => {
 
     const payload: any = {
       conn_string: dbConnString,
-      type: dbScanType,
-      table: tableName.toLowerCase(),
+      scan_type: dbScanType,
+      db_type: "postgres",
     };
+
+    if (dbScanType === "pii-table" && tableName.trim()) {
+      payload.table = tableName.toLowerCase();
+    }
 
     if (selectedPiiTypes.length > 0) {
       payload.pii_types = selectedPiiTypes;
@@ -211,6 +243,7 @@ const App: React.FC = () => {
       });
       const json = res.data;
       setDbResults(Array.isArray(json.data) ? json.data : []);
+      console.log(json.data); //remove it after testing is dome
     } catch (err) {
       console.error("DB scan failed:", err);
     } finally {
