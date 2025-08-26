@@ -13,22 +13,23 @@ router.post('/metadata-classify', validator(metadataSchema), async (req: Request
         const pool = createPool(conn_string);
         const client = await pool.connect();
         const tables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public'`);
-        const metadata = [];
+
+        const groupedMetadata: Record<string, any[]> = {};
 
         for (const row of tables.rows) {
-            const cols = await client.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name='${row.table_name}'`);
-            for (const col of cols.rows) {
-                metadata.push({
-                    table: row.table_name,
-                    column: col.column_name,
-                    type: col.data_type,
-                    pii_type: Object.keys(PII_PATTERNS).find(p => col.column_name.toLowerCase().includes(p)) || null
-                });
-            }
+            const tableName = row.table_name;
+            const cols = await client.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name='${tableName}'`);
+
+            groupedMetadata[tableName] = cols.rows.map(col => ({
+                column: col.column_name,
+                type: col.data_type,
+                pii_type: Object.keys(PII_PATTERNS).find(p => col.column_name.toLowerCase().includes(p)) || null
+            }));
         }
 
         client.release();
-        res.json(metadata).status(200);
+        // res.json(metadata).status(200);
+        res.status(200).json(groupedMetadata);
 
     } catch (error) {
         if (error instanceof Error) {
@@ -77,6 +78,7 @@ router.post('/table-pii-scan', validator(tablePiiSchema), async (req: Request, r
         const client = await pool.connect();
         const data = await client.query(`SELECT * FROM ${table_name} LIMIT 100`);
         //   @ts-ignore
+        // const results = data.rows.flatMap(row => scanTableRow(table_name, row, pii_types));
         const results = data.rows.flatMap(row => scanTableRow(table_name, row, pii_types));
         client.release();
         res.json(results).status(200);

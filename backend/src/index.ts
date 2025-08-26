@@ -153,26 +153,29 @@ app.post(
 app.post(
     '/db-pii',
     asyncHandler(async (req: Request, res: Response) => {
-        const { conn_string, type, table, pii_types } = req.body;
+        const { conn_string, scan_type, table_name, pii_types, db_type } = req.body;
         let endpoint = '';
-        const payload: any = { conn_string };
+        const payload: any = { conn_string, db_type };
 
-        switch (type) {
+        switch (scan_type) {
             case 'pii-meta':
                 endpoint = '/metadata-classify';
                 break;
             case 'pii-full':
                 endpoint = '/full-pii-scan';
+                payload.pii_types = pii_types;
+                // payload.db_type = req.body.db_type; // Added db_type to payload
                 break;
             case 'pii-table':
                 endpoint = '/table-pii-scan';
-                payload.table_name = table;
+                payload.table_name = table_name;
                 break;
             default:
                 res.status(400).json({ error: 'Invalid PII scan type' });
                 return;
         }
-
+        console.log(`Endpoint: ${endpoint}\n`);
+        console.log('PII Bridge Payload:', payload);
         if (pii_types) {
             payload.pii_types = pii_types;
         }

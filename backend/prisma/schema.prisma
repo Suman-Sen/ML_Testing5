@@ -1,0 +1,183 @@
+generator client {
+    provider = "prisma-client-js"
+    output   = "../src/generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id        String  @id @default(cuid())
+    emp_id    String? @unique
+    email     String  @unique
+    firstName String?
+    lastName  String?
+    role      String
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    version String @default("dv-1.0.0")
+
+    batches Batch[]
+}
+
+model Batch {
+    id            String   @id @default(cuid())
+    scanType      scanType
+    totalNumFiles Int?
+    createdAt     DateTime @default(now())
+    creatorId     String
+    creator       User     @relation(fields: [creatorId], references: [id])
+
+    version String @default("dv-1.0.0")
+
+    documents  Document[]
+    images     Image[]
+    dbs        Db[]
+    piiSelects PiiSelected[]
+}
+
+model PiiSelected {
+    id      String   @id @default(cuid())
+    piiName String[]
+
+    version String @default("dv-1.0.0")
+
+    batchId String?
+    batch   Batch?  @relation(fields: [batchId], references: [id])
+}
+
+model Document {
+    id           String   @id @default(cuid())
+    FileName     String
+    piiFound     Boolean
+    numberOfPiis Int
+    foundPiis    String[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    version String @default("dv-1.0.0")
+
+    batchId        String?
+    Batch          Batch?           @relation(fields: [batchId], references: [id])
+    documentResult DocumentResult[]
+}
+
+model DocumentResult {
+    id      String @id @default(cuid())
+    piiType String
+    // found     Boolean
+    count   Int
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    version String @default("dv-1.0.0")
+
+    documentId String
+    document   Document @relation(fields: [documentId], references: [id])
+}
+
+model Image {
+    id         String     @id @default(cuid())
+    fileName   String
+    label      imageLabel
+    confidence Int
+    createdAt  DateTime   @default(now())
+    updatedAt  DateTime   @updatedAt
+
+    version String @default("dv-1.0.0")
+
+    batchId String?
+    Batch   Batch?  @relation(fields: [batchId], references: [id])
+}
+
+model Db {
+    id                   String     @id @default(cuid())
+    databaseName         String
+    scanType             dbScanType
+    dbType               dbType
+    totalNumOfTableScans Int?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    version String @default("dv-1.0.0")
+
+    batchId String
+    Batch   Batch  @relation(fields: [batchId], references: [id])
+
+    dbResults      dbMetaResult[]
+    dbPiiResults   dbPiiResult[]
+    dbTableResults dbTableResult[]
+}
+
+// stored based on pii type
+model dbMetaResult {
+    id       String  @id @default(cuid())
+    found    Boolean
+    piiName  String
+    metadata Json // store {columnId : string, tableName : xyz, columnName : name, dataType: string}
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    version String @default("dv-1.0.0")
+
+    dbId String
+    Db   Db     @relation(fields: [dbId], references: [id])
+}
+
+model dbPiiResult {
+    id        String  @id @default(cuid())
+    // piiType   String
+    columnId String
+    found     Boolean
+    // tableName String
+    count     Int
+    locations Json                             //{tableName: string, piiType: string}
+
+    version String @default("dv-1.0.0")
+
+    dbId String
+    Db   Db     @relation(fields: [dbId], references: [id])
+}
+
+model dbTableResult {
+    id         String @id @default(cuid())
+    tableName  String
+    columnName Json //{piiType:string, rowName:string, columnId: string}
+
+    version String @default("dv-1.0.0")
+
+    dbId String
+    Db   Db     @relation(fields: [dbId], references: [id])
+}
+
+enum imageLabel {
+    AADHAAR
+    PAN
+    PASSPORT
+}
+
+enum scanType {
+    IMAGE_SCAN
+    PDF_SCAN
+    DOCUMENT_SCAN
+}
+
+enum dbScanType {
+    PII_META
+    PII_FULL
+    PII_TABLE
+}
+
+enum dbType {
+    POSTGRES
+    MYSQL
+    ORACLE
+}

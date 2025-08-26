@@ -3,3 +3,5 @@ models/*
 uploads/*
 .env
 .dist
+
+/src/generated/prisma
