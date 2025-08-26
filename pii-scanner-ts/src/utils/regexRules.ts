@@ -1,12 +1,12 @@
 export const PII_PATTERNS: Record<string, RegExp> = {
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
   phone: /\b\d{10}\b/,
-  aadhaar: /\b\d{4}\s\d{4}\s\d{4}\b/,
+  aadhaar: /\b\d{12}\b/, // 12 continuous digits only
   pan: /\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b/,
   passport: /\b[A-PR-WYa-pr-wy][1-9]\d\s?\d{4}[1-9]\b/,
   ssn: /\b\d{3}-\d{2}-\d{4}\b/,
   ifsc: /\b[A-Z]{4}0[A-Z0-9]{6}\b/,
-  credit_card: /\b(?:\d[ -]*?){13,16}\b/,
+  credit_card: /\b\d{16}\b/, // 16 continuous digits only
   ip_address: /\b(?:\d{1,3}\.){3}\d{1,3}\b/,
   mac_address: /\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b/,
   dob: /\b(?:\d{1,2}[-/th|st|nd|rd\s]*)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[-/\s]*\d{2,4}\b|\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/,
