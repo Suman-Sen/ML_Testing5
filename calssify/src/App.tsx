@@ -4,12 +4,12 @@ import { v4 as uuidv4 } from "uuid";
 
 import NavBar from "./components/ui/NavBar";
 import ModeSelector from "./components/ui/ModeSelector";
-import ResultsTable from "./components/shared/tables/ResultsTable";
+import ResultsTable from "./components/results/ResultsTable";
 import ImageScanUpload from "./components/ui/ImageScanUpload";
 import DbScanForm from "./components/DbScanForm";
 import DbResultsTable, {
   type DbResultEntry,
-} from "./components/shared/tables/DbResultsTable";
+} from "./components/results/DbResultsTable";
 import DocumentUploader from "./components/forms/DocumentUploader";
 import DocumentPiiResultsTable from "./components/results/DocumentPiiResultsTable";
 import PiiTypeSelector from "./components/forms/PiiTypeSelector";
@@ -363,8 +363,8 @@ const App: React.FC = () => {
               {imageLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
                   <div
-                    className="bg-blue-600 h-full transition-all duration-200"
-                    style={{ width: `${imageProgress}%` }}
+                    className={`bg-blue-600 h-full w-[${imageProgress}%] transition-all duration-200`}
+                    // style={{ width: `${imageProgress}%` }}
                   />
                 </div>
               )}
@@ -395,8 +395,8 @@ const App: React.FC = () => {
               {dbLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6 mt-1">
                   <div
-                    className="bg-blue-600 h-full transition-all duration-200"
-                    style={{ width: `50%` }}
+                    className="bg-blue-600 h-full w-[50%] transition-all duration-200"
+                    // style={{ width: `50%` }}
                   />
                 </div>
               )}
@@ -436,8 +436,8 @@ const App: React.FC = () => {
               {docPiiLoading && (
                 <div className="w-full bg-gray-200 h-3 rounded overflow-hidden mb-6">
                   <div
-                    className="bg-purple-600 h-full transition-all duration-200"
-                    style={{ width: `${docPiiProgress}%` }}
+                    className={`bg-purple-600 h-full w-[${docPiiProgress}%] transition-all duration-200`}
+                    // style={{ width: `${docPiiProgress}%` }}
                   />
                 </div>
               )}
