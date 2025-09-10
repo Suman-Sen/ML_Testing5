@@ -4,10 +4,18 @@ import numpy as np
 import exifread
 from flask import Flask, request, jsonify
 from keras.models import load_model
+from keras.preprocessing import image
+from tensorflow.keras.applications.mobilenet_v3 import preprocess_input
 from PIL import Image
 import fitz  # PyMuPDF
+# import pillow_avif_plugin
+
+
+# Register AVIF support
 
 app = Flask(__name__)
+
+# Load model and class labels
 try:
     model = load_model("models/id_document_classifier_dataset.keras")
     classes = ['Pan card', 'aadhar', 'passport']
@@ -15,18 +23,15 @@ except Exception as e:
     raise RuntimeError(f"Failed to load ML model: {e}")
 
 # Utility Functions
-# from tensorflow.keras.applications.mobilenet_v3 import preprocess_input
-# from tensorflow.keras.preprocessing import image
 
-def preprocess_image(image_bytes):
+def preprocess_image(pil_img):
     try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB").resize((224, 224))
+        img = pil_img.convert("RGB").resize((224, 224))
         img_array = image.img_to_array(img)
         img_array = preprocess_input(img_array)
         return np.expand_dims(img_array, axis=0)
     except Exception as e:
         raise RuntimeError(f"Image preprocessing failed: {e}")
-
 
 def infer_from_filename(filename):
     name = filename.lower()
@@ -91,32 +96,43 @@ def pdf_to_image(pdf_bytes):
     except Exception as e:
         raise RuntimeError(f"PDF to image conversion failed: {e}")
 
-# API Routes
-
+# API Route
 @app.route('/predict', methods=['POST'])
 def predict():
     file = request.files.get('image')
     if not file:
+        print("No image provided")
         return jsonify({'error': 'No image provided'}), 400
 
     filename = file.filename.lower()
+    print(f"Received file: {filename}")
 
     try:
         raw = file.read()
+        print("File read successfully")
+
         if filename.endswith(".pdf"):
-            image = pdf_to_image(raw)
+            print("Processing PDF")
+            image_obj = pdf_to_image(raw)
             metadata = extract_pdf_metadata(raw)
-            img_array = preprocess_image(image.tobytes())
         else:
+            print("Processing image")
+            image_obj = Image.open(io.BytesIO(raw))
             metadata = extract_image_metadata(raw)
-            img_array = preprocess_image(raw)
+
+        img_array = preprocess_image(image_obj)
+        print("Preprocessing complete")
     except Exception as e:
+        print("Error during file processing:", str(e))
         return jsonify({'error': 'Failed to process file', 'details': str(e)}), 500
 
     try:
+        print("Running model prediction")
         pred = model.predict(img_array)
         model_based = classes[np.argmax(pred)]
+        print("Prediction complete")
     except Exception as e:
+        print("Error during model prediction:", str(e))
         return jsonify({'error': 'Model prediction failed', 'details': str(e)}), 500
 
     file_based = infer_from_filename(filename)
@@ -127,6 +143,10 @@ def predict():
         'label': model_based,
         'metadata': metadata
     })
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=6000, debug=True)
+
 
 
 # @app.route('/metadata', methods=['POST'])
@@ -158,4 +178,4 @@ def predict():
 
 #Run Server
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=6000)
+    app.run(host='0.0.0.0', port=6000,debug=True)
