@@ -5,3 +5,4 @@ uploads/*
 .dist
 
 /src/generated/prisma
+prisma/generated
