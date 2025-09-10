@@ -1,0 +1,56 @@
+version: "3.8"
+services:
+  classifyIQ:
+    image: postgres:latest
+    container_name: classifyIQ
+    environment:
+      POSTGRES_USER: classify_user
+      POSTGRES_PASSWORD: classify_pass
+      POSTGRES_DB: classify_db
+    volumes:
+      - classifyIQ_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+
+  classifyTestPOSTGRES:
+    image: postgres:latest
+    container_name: classifyTestPOSTGRES
+    environment:
+      POSTGRES_USER: classify_user
+      POSTGRES_PASSWORD: classify_pass
+      POSTGRES_DB: classify_db
+    volumes:
+      - classifyTestPOSTGRES_data:/var/lib/postgresql/data
+    ports:
+      - 5433:5433
+
+  classifyTestMYSQL:
+    image: mysql:latest
+    container_name: classifyTestMYSQL
+    environment:
+      MYSQL_ROOT_PASSWORD: classify_pass
+      MYSQL_DATABASE: classify_db
+      MYSQL_USER: classify_user
+      MYSQL_PASSWORD: classify_pass
+    volumes:
+      - classifyTestMYSQL_data:/var/lib/mysql
+    ports:
+      - 3306:3306
+
+  classifyTestORACLE:
+    image: gvenzl/oracle-xe:latest
+    container_name: classifyTestORACLE
+    environment:
+      ORACLE_PASSWORD: classify_pass
+      APP_USER: classify_user
+      APP_USER_PASSWORD: classify_pass
+    volumes:
+      - classifyTestORACLE_data:/opt/oracle/oradata
+    ports:
+      - 1521:1521
+
+volumes:
+  classifyTestPOSTGRES_data: {}
+  classifyTestMYSQL_data: {}
+  classifyTestORACLE_data: {}
+  classifyIQ_data: {}
