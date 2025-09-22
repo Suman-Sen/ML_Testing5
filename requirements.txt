@@ -10,11 +10,9 @@ pandas
 python-docx
 python-pptx
 striprtf
-beautifulsoup4
 openpyxl
-sqlalchemy
-exifread
 keras
 tensorflow
 gunicorn
 psycopg2
+pillow-avif-plugin
