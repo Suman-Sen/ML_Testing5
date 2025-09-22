@@ -22,7 +22,7 @@ services:
     volumes:
       - classifyTestPOSTGRES_data:/var/lib/postgresql/data
     ports:
-      - 5433:5433
+      - 5433:5432
 
   classifyTestMYSQL:
     image: mysql:latest
