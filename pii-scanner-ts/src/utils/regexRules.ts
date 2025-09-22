@@ -18,5 +18,5 @@ export const PII_PATTERNS: Record<string, RegExp> = {
   vehicle_reg: /\b[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}\b/,
   employee_id: /\bEMP[0-9]{4,6}\b/,
   medical_record: /\bMRN[0-9]{6,8}\b/,
-  insurance_policy: /\b[A-Z]{2}[0-9]{10}\b/
+  insurance_policy: /\b[A-Z]{2}[0-9]{10}\b/,
 };
