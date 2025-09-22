@@ -10,9 +10,6 @@ from PIL import Image
 import fitz  # PyMuPDF
 # import pillow_avif_plugin
 
-
-# Register AVIF support
-
 app = Flask(__name__)
 
 # Load model and class labels
@@ -146,36 +143,3 @@ def predict():
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=6000, debug=True)
-
-
-
-# @app.route('/metadata', methods=['POST'])
-# def file_based_scan():
-#     file = request.files.get('image')
-#     if not file:
-#         return jsonify({'error': 'No image provided'}), 400
-
-#     filename = file.filename.lower()
-
-#     try:
-#         raw = file.read()
-#         if filename.endswith(".pdf"):
-#             pdf_img = pdf_to_image(raw)  # validate if can be opened
-#             metadata = extract_pdf_metadata(raw)
-#         else:
-#             img = Image.open(io.BytesIO(raw)).convert("RGB")
-#             metadata = extract_image_metadata(raw)
-#     except Exception as e:
-#         return jsonify({'error': 'Failed to process file', 'details': str(e)}), 500
-
-#     file_based = infer_from_filename(filename)
-
-    # return jsonify({
-    #     'filename': file.filename,
-    #     'file_based': file_based if file_based else 'Unknown',
-    #     'metadata': metadata
-    # })
-
-#Run Server
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=6000,debug=True)
