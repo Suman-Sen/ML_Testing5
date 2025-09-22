@@ -13,39 +13,22 @@ import DbResultsTable, {
 import DocumentUploader from "./components/forms/DocumentUploader";
 import DocumentPiiResultsTable from "./components/results/DocumentPiiResultsTable";
 import PiiTypeSelector from "./components/forms/PiiTypeSelector";
+import { flattenScanResults } from "./utils/flattenScanResults";
+import DbScanMetadata from "./components/results/DbScanMetadata";
+import type {
+  ClassificationResult,
+  DocumentPiiResult,
+  PayloadType,
+} from "./utils/types";
 
 const IQ = "/images/IQ.png";
-
-interface Metadata {
-  [key: string]: string | number | null | undefined;
-}
-
-interface ClassificationResult {
-  filename: string;
-  label?: string;
-  inferred_label?: string;
-  metadata?: Metadata;
-  pii_type?: string;
-  table?: string;
-  column?: string;
-  value?: string | number | null;
-  showMetadata?: boolean;
-}
-
-interface DocumentPiiResult {
-  file_name: string;
-  pii_found: boolean;
-  locations?: Record<string, string[]>;
-  pii_types?: Record<string, string[]>;
-  [k: string]: any;
-  showMetadata?: boolean;
-}
 
 const App: React.FC = () => {
   // Section selector
   const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">(
     "image"
   );
+  const [selectedPiiTypes, setSelectedPiiTypes] = useState<string[]>([]);
 
   // Image Scan State
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -64,6 +47,12 @@ const App: React.FC = () => {
   const [tableName, setTableName] = useState<string>("");
   const [dbLoading, setDbLoading] = useState<boolean>(false);
   const [dbResults, setDbResults] = useState<DbResultEntry[]>([]);
+  const [dbResultsMetadata, setDbResultsMetadata] = useState<{
+    totalTablesScanned: number;
+    totalRowsScanned: number;
+    totalPiiFound: number;
+    piiTypeDistribution: Record<string, number>;
+  } | null>(null);
 
   // Document PII Scan State
   const [docFiles, setDocFiles] = useState<File[]>([]);
@@ -72,7 +61,6 @@ const App: React.FC = () => {
   >([]);
   const [docPiiLoading, setDocPiiLoading] = useState(false);
   const [docPiiProgress, setDocPiiProgress] = useState(0);
-  const [selectedPiiTypes, setSelectedPiiTypes] = useState<string[]>([]);
 
   // WebSocket support for each tab
   const wsRef = useRef<WebSocket | null>(null);
@@ -142,13 +130,13 @@ const App: React.FC = () => {
 
         try {
           await axios.post(
-            `http://localhost:3000/upload?id=${id}&type=${scanType}`,
+            `http://localhost:3000/image?id=${id}&type=${scanType}`,
             formData,
             {
               headers: { "Content-Type": "multipart/form-data" },
             }
           );
-        } catch (err) {
+        } catch {
           setImageLoading(false);
           setImageProgress(0);
           if (wsRef.current) {
@@ -169,7 +157,8 @@ const App: React.FC = () => {
       }
       setImageResults((prev) => [
         ...prev,
-        ...(data.batch || []).map((r: any) => ({ ...r, showMetadata: false })),
+        // TODO: set the r: proper type
+        ...(data.batch || []).map((r: []) => ({ ...r, showMetadata: false })),
       ]);
       setImageProgress((prev) => Math.min(prev + 15, 95));
     };
@@ -189,48 +178,22 @@ const App: React.FC = () => {
     };
   };
 
-  // DB Scan
-  //   const runDbScan = async () => {
-  //     if (!dbConnString) return;
-  //     setDbLoading(true);
-  //     setDbResults([]);
+  // DB SCAN
 
-  //     const payload: any = {
-  //       conn_string: dbConnString,
-  //       type: dbScanType,
-  //       table: tableName.toLowerCase(),
-  //     };
-
-  //     if (selectedPiiTypes.length > 0) {
-  //       payload.pii_types = selectedPiiTypes;
-  //     }
-
-  //     try {
-  //       const res = await axios.post("http://localhost:3000/db-pii", payload, {
-  //         headers: { "Content-Type": "application/json" },
-  //       });
-  //       const json = res.data;
-  //       setDbResults(Array.isArray(json.data) ? json.data : []);
-  //       console.log(dbResults);
-  //     } catch (err) {
-  //       console.error("DB scan failed:", err);
-  //     } finally {
-  //       setDbLoading(false);
-  //     }
-  //   };
   const runDbScan = async () => {
     if (!dbConnString) return;
     setDbLoading(true);
     setDbResults([]);
+    setDbResultsMetadata(null);
 
-    const payload: any = {
+    const payload: PayloadType = {
       conn_string: dbConnString,
       scan_type: dbScanType,
       db_type: "postgres",
     };
 
     if (dbScanType === "pii-table" && tableName.trim()) {
-      payload.table = tableName.toLowerCase();
+      payload.table_name = tableName.toLowerCase();
     }
 
     if (selectedPiiTypes.length > 0) {
@@ -241,9 +204,14 @@ const App: React.FC = () => {
       const res = await axios.post("http://localhost:3000/db-pii", payload, {
         headers: { "Content-Type": "application/json" },
       });
-      const json = res.data;
-      setDbResults(Array.isArray(json.data) ? json.data : []);
-      console.log(json.data); //remove it after testing is dome
+
+      const rawData = res.data?.data || res.data;
+      const metadata = rawData.metadata;
+      const piiData = rawData.results?.pii_data || {};
+
+      setDbResultsMetadata(metadata);
+      setDbResults(flattenScanResults(piiData));
+      console.log("Raw DB Scan Response:", rawData);
     } catch (err) {
       console.error("DB scan failed:", err);
     } finally {
@@ -266,6 +234,7 @@ const App: React.FC = () => {
     );
   };
 
+  // document uploader
   const uploadDocumentPii = async () => {
     if (docFiles.length === 0 || docPiiLoading) return;
 
@@ -298,7 +267,7 @@ const App: React.FC = () => {
             formData,
             { headers: { "Content-Type": "multipart/form-data" } }
           );
-        } catch (err) {
+        } catch {
           setDocPiiLoading(false);
           setDocPiiProgress(0);
           if (wsRef.current) {
@@ -316,7 +285,8 @@ const App: React.FC = () => {
 
       if (Array.isArray(data.batch)) {
         setDocumentPiiResults(
-          data.batch.map((r: any) => ({ ...r, showMetadata: false }))
+          // TODO: set the r: proper type
+          data.batch.map((r: []) => ({ ...r, showMetadata: false }))
         );
         setDocPiiProgress((prev) => Math.min(prev + 15, 95));
       } else if (data.batch) {
@@ -438,6 +408,9 @@ const App: React.FC = () => {
                   <h2 className="text-xl font-bold text-blue-800 mb-4">
                     Database PII Results
                   </h2>
+                  {dbResultsMetadata && (
+                    <DbScanMetadata metadata={dbResultsMetadata} />
+                  )}
                   <DbResultsTable
                     results={dbResults}
                     onToggleMetadata={toggleDbMetadata}
