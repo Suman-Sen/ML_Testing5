@@ -1,6 +1,6 @@
 generator client {
     provider = "prisma-client-js"
-    output   = "../src/generated/prisma"
+    output   = "./generated/prisma"
 }
 
 datasource db {
@@ -30,12 +30,12 @@ model Batch {
     totalNumFiles Int?
     createdAt     DateTime @default(now())
     creatorId     String
-    creator       User     @relation(fields: [creatorId], references: [id])
+    creator       User     @relation(fields: [creatorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
     version String @default("dv-1.0.0")
 
-    documents  Document[]
-    images     Image[]
+    documents  DocumentResult[]
+    images     ImageResult[]
     dbs        Db[]
     piiSelects PiiSelected[]
 }
@@ -47,24 +47,23 @@ model PiiSelected {
     version String @default("dv-1.0.0")
 
     batchId String?
-    batch   Batch?  @relation(fields: [batchId], references: [id])
+    batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+    @@index([batchId])
 }
 
-model Document {
-    id           String   @id @default(cuid())
-    FileName     String
-    piiFound     Boolean
-    numberOfPiis Int
-    foundPiis    String[]
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+model ImageResult {
+    id         String     @id @default(cuid())
+    fileName   String
+    label      imageLabel
+    confidence Int
+    createdAt  DateTime   @default(now())
+    updatedAt  DateTime   @updatedAt
 
     version String @default("dv-1.0.0")
 
-    batchId        String?
-    Batch          Batch?           @relation(fields: [batchId], references: [id])
-    documentResult DocumentResult[]
+    batchId String?
+    Batch   Batch?  @relation(fields: [batchId], references: [id])
 }
 
 model DocumentResult {
@@ -79,21 +78,7 @@ model DocumentResult {
     version String @default("dv-1.0.0")
 
     documentId String
-    document   Document @relation(fields: [documentId], references: [id])
-}
-
-model Image {
-    id         String     @id @default(cuid())
-    fileName   String
-    label      imageLabel
-    confidence Int
-    createdAt  DateTime   @default(now())
-    updatedAt  DateTime   @updatedAt
-
-    version String @default("dv-1.0.0")
-
-    batchId String?
-    Batch   Batch?  @relation(fields: [batchId], references: [id])
+    document   DocumentResult @relation(fields: [documentId], references: [id])
 }
 
 model Db {
@@ -109,53 +94,48 @@ model Db {
     version String @default("dv-1.0.0")
 
     batchId String
-    Batch   Batch  @relation(fields: [batchId], references: [id])
+    batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-    dbResults      dbMetaResult[]
-    dbPiiResults   dbPiiResult[]
-    dbTableResults dbTableResult[]
+    dbPiiResults      dbFullPiiResult[]
+    dbFullPiiMetadata dbFullPiiMetadata[]
+
+    // dbResults      dbMetaResult[]
+    // dbTableResults dbTableResult[]
+    @@index([batchId])
 }
 
-// stored based on pii type
-model dbMetaResult {
-    id       String  @id @default(cuid())
-    found    Boolean
-    piiName  String
-    metadata Json // store {columnId : string, tableName : xyz, columnName : name, dataType: string}
+model dbFullPiiMetadata {
+    id          String @id @default(cuid())
+    tableName   String
+    rowCount    Int
+    pii         Int
+    identifiers Int
+    behavioral  Int
+    owner       String
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    version String @default("dv-1.0.0")
+    dbId    String
+    db      Db     @relation(fields: [dbId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+    @@index([dbId])
+}
+
+model dbFullPiiResult {
+    id             String          @id @default(cuid())
+    tableName      String
+    columnName     String?
+    datatype       String?
+    classification Classification?
+    scanned        Int?
+    matched        Int?
+    accuracy       Float?
 
     version String @default("dv-1.0.0")
 
     dbId String
-    Db   Db     @relation(fields: [dbId], references: [id])
-}
+    db   Db     @relation(fields: [dbId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-model dbPiiResult {
-    id        String  @id @default(cuid())
-    // piiType   String
-    columnId String
-    found     Boolean
-    // tableName String
-    count     Int
-    locations Json                             //{tableName: string, piiType: string}
-
-    version String @default("dv-1.0.0")
-
-    dbId String
-    Db   Db     @relation(fields: [dbId], references: [id])
-}
-
-model dbTableResult {
-    id         String @id @default(cuid())
-    tableName  String
-    columnName Json //{piiType:string, rowName:string, columnId: string}
-
-    version String @default("dv-1.0.0")
-
-    dbId String
-    Db   Db     @relation(fields: [dbId], references: [id])
+    @@index([dbId])
 }
 
 enum imageLabel {
@@ -181,3 +161,54 @@ enum dbType {
     MYSQL
     ORACLE
 }
+
+enum Classification {
+    pii
+    identifiers
+    Behavioral
+    Operational
+}
+
+// model Document {
+//     id           String   @id @default(cuid())
+//     FileName     String
+//     piiFound     Boolean
+//     numberOfPiis Int
+//     foundPiis    String[]
+
+//     createdAt DateTime @default(now())
+//     updatedAt DateTime @updatedAt
+
+//     version String @default("dv-1.0.0")
+
+//     batchId        String?
+//     Batch          Batch?           @relation(fields: [batchId], references: [id])
+//     documentResult DocumentResult[]
+// }
+
+// // stored based on pii type
+// model dbMetaResult {
+//     id       String  @id @default(cuid())
+//     found    Boolean
+//     piiName  String
+//     metadata Json // store {columnId : string, tableName : xyz, columnName : name, dataType: string}
+
+//     createdAt DateTime @default(now())
+//     updatedAt DateTime @updatedAt
+
+//     version String @default("dv-1.0.0")
+
+//     dbId String
+//     db   Db     @relation(fields: [dbId], references: [id])
+// }
+
+// model dbTableResult {
+//     id         String @id @default(cuid())
+//     tableName  String
+//     // columnName Json //{piiType:string, rowName:string, columnId: string}
+
+//     version String @default("dv-1.0.0")
+
+//     dbId String
+//     db   Db     @relation(fields: [dbId], references: [id])
+// }
