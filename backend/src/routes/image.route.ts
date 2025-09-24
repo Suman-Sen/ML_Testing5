@@ -52,6 +52,7 @@ router.post(
             return {
               filename: file.originalname,
               label: response.data.label,
+              confidence: response.data.confidence || null,
               metadata: response.data.metadata || {},
             };
           } catch {

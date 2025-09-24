@@ -8,6 +8,7 @@ from keras.preprocessing import image
 from tensorflow.keras.applications.mobilenet_v3 import preprocess_input
 from PIL import Image
 import fitz  # PyMuPDF
+
 # import pillow_avif_plugin
 
 app = Flask(__name__)
@@ -15,11 +16,12 @@ app = Flask(__name__)
 # Load model and class labels
 try:
     model = load_model("models/id_document_classifier_dataset.keras")
-    classes = ['Pan card', 'aadhar', 'passport']
+    classes = ["Pan card", "aadhar", "passport"]
 except Exception as e:
     raise RuntimeError(f"Failed to load ML model: {e}")
 
 # Utility Functions
+
 
 def preprocess_image(pil_img):
     try:
@@ -30,6 +32,7 @@ def preprocess_image(pil_img):
     except Exception as e:
         raise RuntimeError(f"Image preprocessing failed: {e}")
 
+
 def infer_from_filename(filename):
     name = filename.lower()
     if any(x in name for x in ["aadhaar", "aadhar", "aadha"]):
@@ -39,6 +42,7 @@ def infer_from_filename(filename):
     elif "passport" in name:
         return "Passport"
     return None
+
 
 def extract_image_metadata(image_bytes):
     metadata = {
@@ -59,11 +63,16 @@ def extract_image_metadata(image_bytes):
 
     try:
         tags = exifread.process_file(io.BytesIO(image_bytes), details=False)
-        metadata["exif"] = {tag: str(tags[tag]) for tag in tags if tag not in ("JPEGThumbnail", "TIFFThumbnail")}
+        metadata["exif"] = {
+            tag: str(tags[tag])
+            for tag in tags
+            if tag not in ("JPEGThumbnail", "TIFFThumbnail")
+        }
     except Exception as e:
         metadata["exif_error"] = f"EXIF extraction failed: {e}"
 
     return metadata
+
 
 def extract_pdf_metadata(pdf_bytes):
     try:
@@ -76,10 +85,11 @@ def extract_pdf_metadata(pdf_bytes):
             "title": meta.get("title"),
             "creation_date": meta.get("creationDate"),
             "modification_date": meta.get("modDate"),
-            "page_count": doc.page_count
+            "page_count": doc.page_count,
         }
     except Exception as e:
         return {"error": f"PDF metadata extraction failed: {e}"}
+
 
 def pdf_to_image(pdf_bytes):
     try:
@@ -93,13 +103,14 @@ def pdf_to_image(pdf_bytes):
     except Exception as e:
         raise RuntimeError(f"PDF to image conversion failed: {e}")
 
+
 # API Route
-@app.route('/predict', methods=['POST'])
+@app.route("/predict", methods=["POST"])
 def predict():
-    file = request.files.get('image')
+    file = request.files.get("image")
     if not file:
         print("No image provided")
-        return jsonify({'error': 'No image provided'}), 400
+        return jsonify({"error": "No image provided"}), 400
 
     filename = file.filename.lower()
     print(f"Received file: {filename}")
@@ -121,25 +132,42 @@ def predict():
         print("Preprocessing complete")
     except Exception as e:
         print("Error during file processing:", str(e))
-        return jsonify({'error': 'Failed to process file', 'details': str(e)}), 500
+        return jsonify({"error": "Failed to process file", "details": str(e)}), 500
 
     try:
         print("Running model prediction")
-        pred = model.predict(img_array)
-        model_based = classes[np.argmax(pred)]
+
+        # pred = model.predict(img_array)
+        # model_based = classes[np.argmax(pred)]
+
+        pred = model.predict(img_array)[0]  # Get the first prediction vector
+        predicted_index = np.argmax(pred)
+        model_based = classes[predicted_index]
+        confidence = float(pred[predicted_index]) * 100  # Convert to percentage
+
         print("Prediction complete")
     except Exception as e:
         print("Error during model prediction:", str(e))
-        return jsonify({'error': 'Model prediction failed', 'details': str(e)}), 500
+        return jsonify({"error": "Model prediction failed", "details": str(e)}), 500
 
     file_based = infer_from_filename(filename)
 
-    return jsonify({
-        'file_based': file_based,
-        'model_based': model_based,
-        'label': model_based,
-        'metadata': metadata
-    })
+    # return jsonify({
+    #     'file_based': file_based,
+    #     'model_based': model_based,
+    #     'label': model_based,
+    #     'metadata': metadata
+    # })
+    return jsonify(
+        {
+            "file_based": file_based,
+            "model_based": model_based,
+            "label": model_based,
+            "confidence": f"{confidence:.2f}%",
+            "metadata": metadata,
+        }
+    )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=6000, debug=True)
