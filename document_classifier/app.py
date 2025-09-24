@@ -37,8 +37,9 @@ PII_PATTERNS = {
     "vehicle_reg": r"\b[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}\b",
     "employee_id": r"\bEMP[0-9]{4,6}\b",
     "medical_record": r"\bMRN[0-9]{6,8}\b",
-    "insurance_policy": r"\b[A-Z]{2}[0-9]{10}\b"
+    "insurance_policy": r"\b[A-Z]{2}[0-9]{10}\b",
 }
+
 
 # Extract text from different file types
 def extract_text(file_stream, filename):
@@ -82,13 +83,16 @@ def extract_text(file_stream, filename):
     else:
         return ""
 
+
 # Detect PII using regex
 def detect_pii(text, selected_types=None):
     lines = text.splitlines()
     pii_found = {}
     locations = {}
     selected_patterns = {
-        k: v for k, v in PII_PATTERNS.items() if (selected_types is None or k in selected_types)
+        k: v
+        for k, v in PII_PATTERNS.items()
+        if (selected_types is None or k in selected_types)
     }
 
     for i, line in enumerate(lines, start=1):
@@ -99,30 +103,8 @@ def detect_pii(text, selected_types=None):
                 locations.setdefault(pii_type, []).append(f"Line {i}")
     return pii_found, locations
 
-# Homepage with file upload and PII selection
 
-@app.route('/')
-def home():
-    return render_template_string("""
-        <!DOCTYPE html>
-        <html>
-        <head><title>PII Detector</title></head>
-        <body>
-            <h2>Upload Documents to Detect PII</h2>
-            <form method="POST" action="/document-upload" enctype="multipart/form-data">
-                <input type="file" name="files" multiple required><br><br>
-                <label><input type="checkbox" name="pii_types" value="aadhaar"> Aadhaar</label><br>
-                <label><input type="checkbox" name="pii_types" value="pan"> PAN</label><br>
-                <label><input type="checkbox" name="pii_types" value="passport"> Passport</label><br>
-                <label><input type="checkbox" name="pii_types" value="email"> Email</label><br>
-                <label><input type="checkbox" name="pii_types" value="phone"> Phone</label><br>
-                <br><button type="submit">Upload</button>
-            </form>
-        </body>
-        </html>
-    """)
-
-@app.route('/document-upload', methods=['POST'])
+@app.route("/document-upload", methods=["POST"])
 def document_upload():
     uploaded_files = request.files.getlist("files")
     selected_pii_types = request.form.getlist("pii_types")
@@ -140,19 +122,45 @@ def document_upload():
             file_stream.seek(0)
             text = extract_text(file_stream, uploaded_file.filename)
             pii_types, locations = detect_pii(text, selected_types=selected_pii_types)
-            results.append({
-                "file_name": uploaded_file.filename,
-                "pii_found": bool(pii_types),
-                "pii_types": pii_types,
-                "locations": locations
-            })
+            summary = {
+                pii_type: len(matches) for pii_type, matches in pii_types.items()
+            }
+            results.append(
+                {
+                    "file_name": uploaded_file.filename,
+                    "pii_found": bool(pii_types),
+                    "classifications": summary,
+                }
+            )
+
         except Exception as e:
-            results.append({
-                "file_name": uploaded_file.filename,
-                "error": str(e)
-            })
+            results.append({"file_name": uploaded_file.filename, "error": str(e)})
 
     return jsonify(results)
 
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5003, debug=True)
+
+    # Homepage with file upload and PII selection
+
+# @app.route('/')
+# def home():
+#     return render_template_string("""
+#         <!DOCTYPE html>
+#         <html>
+#         <head><title>PII Detector</title></head>
+#         <body>
+#             <h2>Upload Documents to Detect PII</h2>
+#             <form method="POST" action="/document-upload" enctype="multipart/form-data">
+#                 <input type="file" name="files" multiple required><br><br>
+#                 <label><input type="checkbox" name="pii_types" value="aadhaar"> Aadhaar</label><br>
+#                 <label><input type="checkbox" name="pii_types" value="pan"> PAN</label><br>
+#                 <label><input type="checkbox" name="pii_types" value="passport"> Passport</label><br>
+#                 <label><input type="checkbox" name="pii_types" value="email"> Email</label><br>
+#                 <label><input type="checkbox" name="pii_types" value="phone"> Phone</label><br>
+#                 <br><button type="submit">Upload</button>
+#             </form>
+#         </body>
+#         </html>
+#     """)
