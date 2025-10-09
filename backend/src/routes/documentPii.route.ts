@@ -2,15 +2,16 @@ import { Request, Response, Router } from "express";
 import multer from "multer";
 import fs from "fs";
 import FormData from "form-data";
-
 import asyncHandler from "express-async-handler";
 import { socketsById } from "../sockets/websocket";
 import axios from "axios";
-// import { error } from "console";
+import { PrismaClient } from "../../prisma/generated/prisma";
+import chunkArray from "../utils/chunkArray";
 
-const DOCUMENT_SCAN_URL: string = "http://localhost:5003";
+const DOCUMENT_SCAN_URL = "http://localhost:5003";
 const router = Router();
 const upload = multer({ dest: "uploads/" });
+const prisma = new PrismaClient();
 
 router.post(
   "/document-pii",
@@ -30,61 +31,103 @@ router.post(
 
     if (!files?.length) {
       res.status(400).json({ error: "No files were uploaded to be scanned" });
+      return;
     }
 
-    const form = new FormData();
-
-    files.forEach((file) => {
-      form.append("files", fs.createReadStream(file.path), file.originalname);
+    const user = await prisma.user.upsert({
+      where: { email: "user1759900729262@example.com" },
+      update: {},
+      create: {
+        email: "user1759900729262@example.com",
+        role: "SCANNER",
+        firstName: "Seeded",
+        lastName: "User",
+      },
     });
 
-    if (piiTypes) {
-      (Array.isArray(piiTypes) ? piiTypes : [piiTypes]).forEach((type) =>
-        form.append("pii_types", type)
-      );
-    }
+    const batch = await prisma.batch.create({
+      data: {
+        scanType: "DOCUMENT_SCAN",
+        creatorId: user.id,
+        totalNumFiles: files.length,
+      },
+    });
 
-    try {
-      const response = await axios.post(
-        `${DOCUMENT_SCAN_URL}/document-upload`,
-        form,
-        { headers: form.getHeaders(), timeout: 30000 }
-      );
-      files.forEach((file) => {
-        fs.unlinkSync(file.path);
+    const fileChunks = chunkArray(files, 5);
+
+    for (const chunk of fileChunks) {
+      const form = new FormData();
+      chunk.forEach((file) => {
+        form.append("files", fs.createReadStream(file.path), file.originalname);
       });
-      if (clientWS?.readyState === clientWS.OPEN) {
-        clientWS.send(
-          JSON.stringify({
-            requestId,
-            type: "document-pii",
-            batch: response.data,
-          })
+
+      if (piiTypes) {
+        (Array.isArray(piiTypes) ? piiTypes : [piiTypes]).forEach((type) =>
+          form.append("pii_types", type)
         );
       }
+
+      try {
+        const response = await axios.post(
+          `${DOCUMENT_SCAN_URL}/document-upload`,
+          form,
+          {
+            headers: form.getHeaders(),
+            timeout: 30000,
+          }
+        );
+
+        chunk.forEach((file) => fs.unlinkSync(file.path));
+
+        for (const result of response.data) {
+          await prisma.documentResult.create({
+            data: {
+              fileName: result.file_name,
+              fileType: result.file_name.split(".").pop(),
+              piiFound: result.pii_found,
+              batch: { connect: { id: batch.id } },
+              classifications: {
+                create: Object.entries(result.classifications).map(
+                  ([piiType, count]) => ({
+                    piiType,
+                    count: Number(count),
+                  })
+                ),
+              },
+            },
+          });
+        }
+
+        if (clientWS?.readyState === clientWS.OPEN) {
+          clientWS.send(
+            JSON.stringify({
+              requestId,
+              type: "document-pii",
+              batch: response.data,
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Batch scan failed:", error);
+        if (clientWS?.readyState === clientWS.OPEN) {
+          clientWS.send(
+            JSON.stringify({
+              requestId,
+              type: "document-pii",
+              error: "Failed to analyze a batch of documents",
+            })
+          );
+        }
+      }
+    }
+
+    if (clientWS?.readyState === clientWS.OPEN) {
       clientWS.send(
         JSON.stringify({ requestId, type: "document-pii", done: true })
       );
-      res.status(200).json({ status: "PII scan complete" });
-      return;
-    } catch (error) {
-      if (clientWS?.readyState === clientWS.OPEN) {
-        clientWS.send(
-          JSON.stringify({
-            requestId,
-            type: "document-pii",
-            error: "Failed to analyze the document for PII",
-            done: true,
-          })
-        );
-        return;
-      }
     }
 
-    res
-      .status(500)
-      .json({ error: "Failed to analyze the documents for PII scans" });
-    return;
+    res.status(200).json({ status: "PII scan complete", batchId: batch.id });
   })
 );
 
