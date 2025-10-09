@@ -19,12 +19,11 @@ export const setupWebSocket = (server: http.Server) => {
       }
     });
 
-    wss.on("close", () => {
+    ws.on("close", () => {
       if (currentId) {
-
+        socketsById.delete(currentId);
+        console.log(`WebSocket closed for id ${currentId}`);
       }
     });
   });
 };
-
-
