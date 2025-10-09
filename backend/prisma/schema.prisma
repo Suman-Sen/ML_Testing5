@@ -66,19 +66,35 @@ model ImageResult {
     Batch   Batch?  @relation(fields: [batchId], references: [id])
 }
 
-model DocumentResult {
-    id      String @id @default(cuid())
-    piiType String
-    // found     Boolean
-    count   Int
 
+model DocumentResult {
+    id        String   @id @default(cuid())
+    fileName  String
+    fileType  String?
+    piiFound  Boolean  @default(false)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
     version String @default("dv-1.0.0")
 
+    batchId String?
+    batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+    classifications DocumentClassification[]
+
+    @@index([batchId])
+}
+
+model DocumentClassification {
+    id         String         @id @default(cuid())
+    piiType    String
+    count      Int
     documentId String
-    document   DocumentResult @relation(fields: [documentId], references: [id])
+    document   DocumentResult @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+    version String @default("dv-1.0.0")
+
+    @@index([documentId])
 }
 
 model Db {
@@ -211,4 +227,19 @@ enum Classification {
 
 //     dbId String
 //     db   Db     @relation(fields: [dbId], references: [id])
+// }
+
+// model DocumentResult {
+//     id      String @id @default(cuid())
+//     piiType String
+//     // found     Boolean
+//     count   Int
+
+//     createdAt DateTime @default(now())
+//     updatedAt DateTime @updatedAt
+
+//     version String @default("dv-1.0.0")
+
+//     documentId String
+//     document   DocumentResult @relation(fields: [documentId], references: [id])
 // }
