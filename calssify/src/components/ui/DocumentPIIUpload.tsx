@@ -19,9 +19,14 @@ const DocumentPIIUpload: React.FC<DocumentPIIUploadProps> = ({
 }) => {
   return (
     <div className="mb-10">
-      <h2 className="text-xl font-bold text-blue-800 mb-4">Document PII Scan</h2>
+      <h2 className="text-xl font-bold text-blue-800 mb-4">
+        Document PII Scan
+      </h2>
       <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-        <label htmlFor="file-upload-doc" className="text-sm font-medium text-gray-700">
+        <label
+          htmlFor="file-upload-doc"
+          className="text-sm font-medium text-gray-700"
+        >
           Upload Documents
         </label>
         <input

@@ -5,7 +5,10 @@ interface ModeSelectorProps {
   setCurrentTab: (tab: "image" | "db" | "document-pii") => void;
 }
 
-const ModeSelector: React.FC<ModeSelectorProps> = ({ currentTab, setCurrentTab }) => {
+const ModeSelector: React.FC<ModeSelectorProps> = ({
+  currentTab,
+  setCurrentTab,
+}) => {
   const tabs = [
     { id: "image", label: "Image Scan" },
     { id: "db", label: "DB Scan" },
@@ -17,7 +20,9 @@ const ModeSelector: React.FC<ModeSelectorProps> = ({ currentTab, setCurrentTab }
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setCurrentTab(tab.id as "image" | "db" | "document-pii")}
+          onClick={() =>
+            setCurrentTab(tab.id as "image" | "db" | "document-pii")
+          }
           className={`px-4 py-2 rounded font-semibold ${
             currentTab === tab.id ? "bg-blue-600 text-white" : "bg-gray-200"
           }`}

@@ -1,5 +1,14 @@
-import React, { Fragment } from "react";
+import React from "react";
 
+interface ColumnScan {
+  name: string;
+  DataType: string;
+  classifications: string;
+  scaned: number;
+  matched: number;
+  accuracy: string;
+}
+// In DbResultsTable.tsx or a separate types file
 export interface DbResultEntry {
   table?: string;
   rowId?: string;
@@ -10,69 +19,64 @@ export interface DbResultEntry {
     };
   };
   metadata?: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
+  showMetadata?: boolean;
+}
+export interface TableScan {
+  name: string;
+  columns: ColumnScan[];
   showMetadata?: boolean;
 }
 
 interface DbResultsTableProps {
-  results: DbResultEntry[];
+  results: TableScan[];
   onToggleMetadata: (index: number) => void;
 }
 
-const DbResultsTable: React.FC<DbResultsTableProps> = ({ results, onToggleMetadata }) => {
+const DbResultsTable: React.FC<DbResultsTableProps> = ({ results }) => {
   return (
     <div className="overflow-x-auto mt-6">
-      <table className="min-w-full bg-white border border-gray-300 rounded-lg overflow-hidden">
-        <thead className="bg-gray-200 text-gray-700">
-          <tr>
-            <th className="px-4 py-2 text-left">Sl. No</th>
-            <th className="px-4 py-2 text-left">Table</th>
-            <th className="px-4 py-2 text-left">Row ID</th>
-            <th className="px-4 py-2 text-left">Fields</th>
-            <th className="px-4 py-2 text-left">Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.map((res, idx) => (
-            <Fragment key={`db-${res.table}-${res.rowId || idx}`}>
-              <tr className="border-t bg-white hover:bg-gray-50 transition">
-                <td className="px-4 py-3">{idx + 1}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{res.table || "-"}</td>
-                <td className="px-4 py-3">{res.rowId || "-"}</td>
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  {res.fields
-                    ? Object.entries(res.fields).map(([field, info]) => (
-                        <div key={field}>
-                          <strong>{field}</strong>: {info.pii_type}
-                        </div>
-                      ))
-                    : "-"}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  <button
-                    onClick={() => onToggleMetadata(idx)}
-                    className="text-blue-600 underline"
-                  >
-                    {res.showMetadata ? "Hide" : "Show"} Details
-                  </button>
-                </td>
-              </tr>
-              {res.showMetadata && (
-                <tr className="bg-gray-100 border-t">
-                  <td colSpan={5} className="px-6 py-4 text-xs">
-                    <div className="bg-white rounded border p-3 shadow-sm max-w-4xl overflow-x-auto">
-                      <pre className="whitespace-pre-wrap break-words text-xs text-gray-800">
-                        {JSON.stringify(res.metadata || {}, null, 2)}
-                      </pre>
-                    </div>
-                  </td>
+      <h3 className="text-lg font-semibold text-blue-800 mb-4">
+        Table Scan Results
+      </h3>
+      {results.map((table, idx) => (
+        <div key={table.name} className="mb-6">
+          <h4 className="text-md font-bold text-gray-800 mb-2">
+            {idx + 1}. {table.name}
+          </h4>
+          {table.columns.length > 0 ? (
+            <table className="min-w-full bg-white border border-gray-300 rounded">
+              <thead className="bg-gray-200 text-gray-700">
+                <tr>
+                  <th className="px-4 py-2 text-left">Column</th>
+                  <th className="px-4 py-2 text-left">Data Type</th>
+                  <th className="px-4 py-2 text-left">Classification</th>
+                  <th className="px-4 py-2 text-left">Scanned</th>
+                  <th className="px-4 py-2 text-left">Matched</th>
+                  <th className="px-4 py-2 text-left">Accuracy</th>
                 </tr>
-              )}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+              </thead>
+              <tbody>
+                {table.columns.map((col) => (
+                  <tr key={col.name} className="border-t">
+                    <td className="px-4 py-2">{col.name}</td>
+                    <td className="px-4 py-2">{col.DataType}</td>
+                    <td className="px-4 py-2">{col.classifications}</td>
+                    <td className="px-4 py-2">{col.scaned}</td>
+                    <td className="px-4 py-2">{col.matched}</td>
+                    <td className="px-4 py-2">{col.accuracy}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-gray-600">
+              No PII detected in this table.
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   );
 };

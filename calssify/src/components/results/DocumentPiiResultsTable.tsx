@@ -7,7 +7,8 @@ interface DocumentPiiResult {
     [key: string]: string[];
   };
   showMetadata?: boolean;
-  [key: string]: any;
+  //   TODO: Set the proper types
+  [key: string]: unknown;
 }
 
 interface DocumentPiiResultsTableProps {
@@ -22,7 +23,11 @@ const DocumentPiiResultsTable: React.FC<DocumentPiiResultsTableProps> = ({
   onToggleMetadata,
 }) => {
   if (!loading && results.length === 0) {
-    return <div className="text-gray-700 py-3">No results for Document PII scan.</div>;
+    return (
+      <div className="text-gray-700 py-3">
+        No results for Document PII scan.
+      </div>
+    );
   }
 
   return (
@@ -40,7 +45,9 @@ const DocumentPiiResultsTable: React.FC<DocumentPiiResultsTableProps> = ({
         <tbody>
           {results.map((res, idx) => {
             const piiTypeNames = res.pii_types
-              ? Object.keys(res.pii_types).filter((k) => res.pii_types?.[k]?.length)
+              ? Object.keys(res.pii_types).filter(
+                  (k) => res.pii_types?.[k]?.length
+                )
               : [];
 
             return (

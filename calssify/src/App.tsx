@@ -8,13 +8,14 @@ import ResultsTable from "./components/results/ResultsTable";
 import ImageScanUpload from "./components/ui/ImageScanUpload";
 import DbScanForm from "./components/DbScanForm";
 import DbResultsTable, {
-  type DbResultEntry,
+  type TableScan,
 } from "./components/results/DbResultsTable";
 import DocumentUploader from "./components/forms/DocumentUploader";
 import DocumentPiiResultsTable from "./components/results/DocumentPiiResultsTable";
 import PiiTypeSelector from "./components/forms/PiiTypeSelector";
-import { flattenScanResults } from "./utils/flattenScanResults";
-import DbScanMetadata from "./components/results/DbScanMetadata";
+import DbScanMetadata, {
+  type TableMetadata,
+} from "./components/results/DbScanMetadata";
 import type {
   ClassificationResult,
   DocumentPiiResult,
@@ -46,12 +47,10 @@ const App: React.FC = () => {
   >("pii-full");
   const [tableName, setTableName] = useState<string>("");
   const [dbLoading, setDbLoading] = useState<boolean>(false);
-  const [dbResults, setDbResults] = useState<DbResultEntry[]>([]);
+  const [dbResults, setDbResults] = useState<TableScan[]>([]);
   const [dbResultsMetadata, setDbResultsMetadata] = useState<{
-    totalTablesScanned: number;
-    totalRowsScanned: number;
-    totalPiiFound: number;
-    piiTypeDistribution: Record<string, number>;
+    db_Name: string;
+    table_metadata: TableMetadata[];
   } | null>(null);
 
   // Document PII Scan State
@@ -112,8 +111,13 @@ const App: React.FC = () => {
     setImageProgress(10);
     setImageResults([]);
 
-    const id = uuidv4();
+    // const id = uuidv4();
+    // requestId.current = id;
+
+    // TODO: use a non constant id (like users id )
+    const id = "cmgkgxt5a0000le6041a90zln";
     requestId.current = id;
+
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -122,7 +126,8 @@ const App: React.FC = () => {
     wsRef.current = socket;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ id, type: scanType }));
+      //   socket.send(JSON.stringify({ id: "cmgkgxt5a0000le6041a90zln" }));
+      socket.send(JSON.stringify({ id }));
 
       setTimeout(async () => {
         const formData = new FormData();
@@ -206,11 +211,13 @@ const App: React.FC = () => {
       });
 
       const rawData = res.data?.data || res.data;
-      const metadata = rawData.metadata;
-      const piiData = rawData.results?.pii_data || {};
-
+      const metadata = rawData.scanData.metadata;
       setDbResultsMetadata(metadata);
-      setDbResults(flattenScanResults(piiData));
+      console.log(metadata);
+      //   const piiData = rawData.results?.pii_data || {};
+      const tableScans: TableScan[] = rawData.scanData.table_scans;
+      setDbResults(tableScans);
+      //   setDbResults(flattenScanResults(piiData));
       console.log("Raw DB Scan Response:", rawData);
     } catch (err) {
       console.error("DB scan failed:", err);
@@ -405,9 +412,9 @@ const App: React.FC = () => {
               )}
               {dbResults.length > 0 && (
                 <div className="overflow-x-auto mt-6">
-                  <h2 className="text-xl font-bold text-blue-800 mb-4">
+                  {/* <h2 className="text-xl font-bold text-blue-800 mb-4">
                     Database PII Results
-                  </h2>
+                  </h2> */}
                   {dbResultsMetadata && (
                     <DbScanMetadata metadata={dbResultsMetadata} />
                   )}

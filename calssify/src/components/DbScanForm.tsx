@@ -24,7 +24,7 @@ const DbScanForm: React.FC<DbScanFormProps> = ({
   setTableName,
   runDbScan,
   selectedPiiTypes,
-  setSelectedPiiTypes
+  setSelectedPiiTypes,
 }) => {
   return (
     <>
@@ -42,13 +42,20 @@ const DbScanForm: React.FC<DbScanFormProps> = ({
           placeholder="Database connection string"
         />
 
-        <label htmlFor="scan-type-select" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="scan-type-select"
+          className="block text-sm font-medium text-gray-700"
+        >
           Scan Type
         </label>
         <select
           id="scan-type-select"
           value={dbScanType}
-          onChange={(e) => setDbScanType(e.target.value as "pii-meta" | "pii-full" | "pii-table")}
+          onChange={(e) =>
+            setDbScanType(
+              e.target.value as "pii-meta" | "pii-full" | "pii-table"
+            )
+          }
           className="w-full border border-gray-300 rounded px-3 py-2"
         >
           <option value="pii-meta">Metadata Only</option>
@@ -72,12 +79,13 @@ const DbScanForm: React.FC<DbScanFormProps> = ({
         )}
 
         {/* PII Type Selector */}
-        
-        {(dbScanType==='pii-full' ||dbScanType==='pii-table' )&&<PiiTypeSelector
-          selected={selectedPiiTypes}
-          setSelected={setSelectedPiiTypes}
-        />
-        }
+
+        {(dbScanType === "pii-full" || dbScanType === "pii-table") && (
+          <PiiTypeSelector
+            selected={selectedPiiTypes}
+            setSelected={setSelectedPiiTypes}
+          />
+        )}
         <button
           onClick={runDbScan}
           className="bg-green-600 text-white font-semibold px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
