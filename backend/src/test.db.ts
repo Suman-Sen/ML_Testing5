@@ -9,7 +9,8 @@ const main = async () => {
   try {
     const randomUser = await prisma.user.create({
       data: {
-        email: `user${Date.now()}@example.com`,
+        // email: `user${Date.now()}@example.com`,
+        email:"johndoe@example.com",
         role: "SCANNER",
         firstName: "Random",
         lastName: "User",

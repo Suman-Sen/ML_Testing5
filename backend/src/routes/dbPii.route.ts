@@ -41,19 +41,20 @@ router.post(
       const response = await axios.post(`${DB_scan_URL}${endpoint}`, payload);
       const scanData = response.data.results;
 
-      // Create or reuse user
+      // TODO: Delete it after users are built
+      // Creates or reuses the user
       const user = await prisma.user.upsert({
-        where: { email: "user1759900729262@example.com" },
+        where: { email: "johndoe@example.com" },
         update: {},
         create: {
-          email: "user1759900729262@example.com",
+          email: "johndoe@example.com",
           role: "SCANNER",
           firstName: "Seeded",
           lastName: "User",
         },
       });
 
-      // Create batch
+      // Creates the batch
       const batch = await prisma.batch.create({
         data: {
           scanType: "DOCUMENT_SCAN",
@@ -62,7 +63,7 @@ router.post(
         },
       });
 
-      // Create DB record
+      // Creates the DB record
       const dbRecord = await prisma.db.create({
         data: {
           databaseName: scanData.metadata.db_Name,
@@ -73,7 +74,7 @@ router.post(
         },
       });
 
-      // Store metadata
+      // Stores the metadata
       for (const table of scanData.metadata.table_metadata) {
         await prisma.dbFullPiiMetadata.create({
           data: {

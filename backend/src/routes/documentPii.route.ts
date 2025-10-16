@@ -34,11 +34,12 @@ router.post(
       return;
     }
 
+    // TODO: Delete it after users are built
     const user = await prisma.user.upsert({
-      where: { email: "user1759900729262@example.com" },
+      where: { email: "johndoe@example.com" },
       update: {},
       create: {
-        email: "user1759900729262@example.com",
+        email: "johndoe@example.com",
         role: "SCANNER",
         firstName: "Seeded",
         lastName: "User",
