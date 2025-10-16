@@ -107,7 +107,7 @@ router.post(
         }
       }
 
-      res.json({ status: "DB scan complete", batchId: batch.id });
+      res.json({ status: "DB scan complete", batchId: batch.id, scanData });
     } catch (error) {
       //   console.error("DB scan failed:", error);
       res.status(500).json({ error: "Failed to query the DB scan server" });
