@@ -126,7 +126,6 @@ const App: React.FC = () => {
     wsRef.current = socket;
 
     socket.onopen = () => {
-      //   socket.send(JSON.stringify({ id: "cmgkgxt5a0000le6041a90zln" }));
       socket.send(JSON.stringify({ id }));
 
       setTimeout(async () => {
