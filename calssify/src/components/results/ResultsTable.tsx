@@ -1,10 +1,10 @@
 import React, { Fragment } from "react";
 
-interface Metadata {
+export interface Metadata {
   [key: string]: string | number | null | undefined;
 }
 
-interface ResultEntry {
+export interface ResultEntry {
   filename?: string;
   table?: string;
   column?: string;
@@ -15,7 +15,7 @@ interface ResultEntry {
   showMetadata?: boolean;
 }
 
-interface ResultsTableProps {
+export interface ResultsTableProps {
   results: ResultEntry[];
   imageMode?: "classify" | "extract" | "metadata"; // Allowing all 3 for compatibility
   onToggleMetadata: (index: number) => void;

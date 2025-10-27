@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
-import NavBar from "./components/ui/NavBar";
 import ModeSelector from "./components/ui/ModeSelector";
 import ResultsTable from "./components/results/ResultsTable";
 import ImageScanUpload from "./components/ui/ImageScanUpload";
@@ -20,9 +19,8 @@ import type {
   ClassificationResult,
   DocumentPiiResult,
   PayloadType,
-} from "./utils/types";
+} from "./types/types";
 
-const IQ = "/images/IQ.png";
 
 const App: React.FC = () => {
   // Section selector
@@ -345,7 +343,6 @@ const App: React.FC = () => {
 
   return (
     <>
-      <NavBar logoSrc={IQ} />
       <div className="min-h-screen bg-gray-100 p-6">
         <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-8">
           {/* <h1 className="text-3xl font-bold text-center mb-8 text-blue-700">ID Scanner</h1> */}
