@@ -159,10 +159,12 @@ enum imageLabel {
     PASSPORT
 }
 
+
 enum scanType {
-    IMAGE_SCAN
-    PDF_SCAN
-    DOCUMENT_SCAN
+  IMAGE_SCAN
+  PDF_SCAN
+  DOCUMENT_SCAN
+  DB_SCAN 
 }
 
 enum dbScanType {

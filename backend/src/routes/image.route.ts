@@ -26,23 +26,10 @@ router.post(
   "/image",
   upload.array("images"),
   asyncHandler(async (req: Request, res: Response) => {
+    const requestId = req.query.id as string;
+    const scanType = req.query.type as string;
 
-    // TODO: Delete it after users are built
-
-    const user = await prisma.user.upsert({
-      where: { email: "johndoe@example.com" },
-      update: {},
-      create: {
-        email: "johndoe@example.com",
-        role: "SCANNER",
-        firstName: "Seeded",
-        lastName: "User",
-      },
-    });
-
-    const userId = user.id; // static user ID for now
-    const scanType = "classify";
-    const clientWs = socketsById.get(userId);
+    const clientWs = socketsById.get(requestId); // ✅ use requestId instead of userId
     const files = req.files as Express.Multer.File[];
 
     if (!files?.length) {
@@ -55,11 +42,22 @@ router.post(
       return;
     }
 
-    // Create a new Batch record
+    // Create or reuse the user
+    const user = await prisma.user.upsert({
+      where: { email: "johndoe@example.com" },
+      update: {},
+      create: {
+        email: "johndoe@example.com",
+        role: "SCANNER",
+        firstName: "Seeded",
+        lastName: "User",
+      },
+    });
+
     const batchRecord = await prisma.batch.create({
       data: {
         scanType: "IMAGE_SCAN",
-        creatorId: userId,
+        creatorId: user.id,
         totalNumFiles: files.length,
       },
     });
@@ -107,7 +105,6 @@ router.post(
         })
       );
 
-      // Store results in ImageResult table
       await prisma.imageResult.createMany({
         data: results.map((result) => ({
           fileName: result.filename,
@@ -117,18 +114,15 @@ router.post(
         })),
       });
 
-      // Send results to WebSocket client
       if (clientWs?.readyState === clientWs.OPEN) {
         clientWs.send(
-          JSON.stringify({ requestId: userId, type: scanType, batch: results })
+          JSON.stringify({ requestId, type: scanType, batch: results })
         );
       }
     }
 
     if (clientWs?.readyState === clientWs.OPEN) {
-      clientWs.send(
-        JSON.stringify({ requestId: userId, type: scanType, done: true })
-      );
+      clientWs.send(JSON.stringify({ requestId, type: scanType, done: true }));
     }
 
     res.status(200).json({ status: "Uploaded and stored" });
