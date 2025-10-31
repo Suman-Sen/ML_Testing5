@@ -1,26 +1,26 @@
 version: "3.8"
 services:
   classifyIQ:
-    image: postgres:latest
+    image: postgres:15
     container_name: classifyIQ
     environment:
       POSTGRES_USER: classify_user
       POSTGRES_PASSWORD: classify_pass
       POSTGRES_DB: classify_db
     volumes:
-      - classifyIQ_data:/var/lib/postgresql/data
+      - classifyIQ_data:/var/lib/postgresql
     ports:
       - 5432:5432
 
   classifyTestPOSTGRES:
-    image: postgres:latest
+    image: postgres:15
     container_name: classifyTestPOSTGRES
     environment:
       POSTGRES_USER: classify_user
       POSTGRES_PASSWORD: classify_pass
       POSTGRES_DB: classify_db
     volumes:
-      - classifyTestPOSTGRES_data:/var/lib/postgresql/data
+      - classifyTestPOSTGRES_data:/var/lib/postgresql
     ports:
       - 5433:5432
 

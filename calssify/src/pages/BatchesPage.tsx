@@ -29,31 +29,37 @@ const BatchesPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4">
+    <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
       <h1 className="text-2xl font-bold mb-4">Batches</h1>
-      <ul className="space-y-2">
-        {batches.map((batch) => (
-          <li
-            key={batch.id}
-            className="p-4 border rounded hover:bg-gray-100 cursor-pointer"
-            onClick={() => handleBatchClick(batch.id)}
-          >
-            <div>
-              <strong>ID:</strong> {batch.id}
-            </div>
-            <div>
-              <strong>Scan Type:</strong> {batch.scanType}
-            </div>
-            <div>
-              <strong>Total Files:</strong> {batch.totalNumFiles}
-            </div>
-            <div>
-              <strong>Created At:</strong>{" "}
-              {new Date(batch.createdAt).toLocaleString()}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {batches.length === 0 ? (
+        <div className="flex items-center justify-center h-96">
+          <span className="text-gray-500 text-xl font-semibold">No batches to show.</span>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {batches.map((batch) => (
+            <li
+              key={batch.id}
+              className="p-4 border rounded hover:bg-gray-100 cursor-pointer"
+              onClick={() => handleBatchClick(batch.id)}
+            >
+              <div>
+                <strong>ID:</strong> {batch.id}
+              </div>
+              <div>
+                <strong>Scan Type:</strong> {batch.scanType}
+              </div>
+              <div>
+                <strong>Total Files:</strong> {batch.totalNumFiles}
+              </div>
+              <div>
+                <strong>Created At:</strong>{" "}
+                {new Date(batch.createdAt).toLocaleString()}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

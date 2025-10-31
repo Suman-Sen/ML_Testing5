@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
@@ -22,10 +23,18 @@ import type {
 } from "../types/types";
 
 const Scan: React.FC = () => {
+  const location = useLocation();
   // Section selector
-  const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">(
-    "image"
-  );
+  const [currentTab, setCurrentTab] = useState<"image" | "db" | "document-pii">("image");
+
+  // On mount or location change, set tab from query string
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (tab === "image" || tab === "db" || tab === "document-pii") {
+      setCurrentTab(tab);
+    }
+  }, [location.search]);
   const [selectedPiiTypes, setSelectedPiiTypes] = useState<string[]>([]);
 
   // Image Scan State

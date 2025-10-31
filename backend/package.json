@@ -24,7 +24,7 @@
         "typescript": "^5.9.2"
     },
     "dependencies": {
-        "@prisma/client": "^6.13.0",
+        "@prisma/client": "^6.18.0",
         "axios": "^1.10.0",
         "cors": "^2.8.5",
         "dotenv": "^17.2.3",
