@@ -1,0 +1,169 @@
+# Rough documentation (needs review)
+
+A comprehensive Machine Learning project integrating **multiple classifiers, backend APIs, and scanning utilities** — built to demonstrate model training, evaluation, inference APIs, and data protection workflows.
+
+---
+
+## Table of Contents
+
+1. About the Project  
+2. Features  
+3. Tech Stack  
+4. Repository Structure  
+5. Getting Started  
+   - Prerequisites  
+   - Installation  
+   - Running the Backend  
+   - Using the Classifiers  
+6. Model Descriptions  
+7. API Endpoints  
+8. Usage Examples  
+9. Testing  
+10. Contributing  
+11. License  
+12. Contact  
+
+---
+
+## 1. About the Project
+
+**ML_Testing5** is a modular Machine Learning and backend integration repository that includes:
+
+- Multiple ML classification systems  
+- Backend server exposing inference APIs  
+- PII (Personally Identifiable Information) scanning utilities  
+- Sample model deployments for document and image classification  
+- Database schemas and container-based deployment support  
+
+This project demonstrates how machine learning models can be integrated into **real-world production-like systems** using APIs, databases, and containerized services.
+
+---
+
+## 2. Features
+
+✔️ Document Classification  
+✔️ Image Classification  
+✔️ Backend REST API  
+✔️ PII Scanner (Python & TypeScript)  
+✔️ SQL database schemas  
+✔️ Containerized deployment using Podman/Docker  
+✔️ Modular & scalable project structure  
+
+---
+
+## 3. Tech Stack
+
+| Layer | Technology |
+|------|-----------|
+| Programming | Python, TypeScript |
+| ML | scikit-learn / TensorFlow / PyTorch |
+| Backend | FastAPI / Flask |
+| API | REST |
+| Database | MySQL / PostgreSQL / Oracle |
+| DevOps | Podman, Docker |
+| Tools | SQL, YAML |
+
+---
+
+## 4. Repository Structure
+ML_Testing5/ ├── backend/                  # Backend API server ├── calssify/                 # Classification logic (naming preserved) ├── document_classifier/      # Document classification model & utilities ├── image_classifier/         # Image classification model & utilities ├── pii_scanner/              # PII scanner (Python) ├── pii-scanner-ts/           # PII scanner (TypeScript) ├── podman-compose.yml        # Container orchestration ├── requirements.txt          # Python dependencies ├── schema_mysql.sql          # MySQL schema ├── schema_postgres.sql       # PostgreSQL schema ├── schema_oracle.sql         # Oracle schema ├── seed_data.json            # Sample seed data └── README.md
+---
+
+## 5. Getting Started
+
+### Prerequisites
+
+Ensure the following are installed:
+
+- Python 3.9 or higher  
+- Node.js & npm (for TypeScript scanner)  
+- Podman or Docker  
+- MySQL / PostgreSQL / Oracle (optional)
+
+---
+
+### Installation
+
+#### 1. Clone the Repository
+```bash
+git clone https://github.com/Suman-Sen/ML_Testing5.git
+cd ML_Testing5
+
+2. Setup Python Environment
+
+python -m venv venv
+source venv/bin/activate   # Linux/Mac
+venv\Scripts\activate      # Windows
+pip install -r requirements.txt
+
+3. Database Setup
+
+mysql -u root -p < schema_mysql.sql
+
+4. Running the Backend
+
+cd backend
+uvicorn main:app --reload
+
+4. Backend will be available at:
+
+http://localhost:8000
+
+5. Using the Classifiers
+📄 Document Classification
+POST /predict/document
+
+Image Classification
+POST /predict/image
+
+PII Scanner
+python pii_scanner/run.py
+
+TypeScript Version
+cd pii-scanner-ts
+npm install
+npm start
+
+6. Model Descriptions
+📄 Document Classifier
+Classifies documents into predefined categories
+Includes preprocessing and inference pipeline
+🖼️ Image Classifier
+CNN / Transfer Learning based approach
+Supports common image formats
+🕵️ PII Scanner
+Detects sensitive information such as names, emails, IDs
+Uses rule-based and ML-assisted detection
+🌐 7. API Endpoints
+Method
+Endpoint
+Description
+POST
+/predict/document
+Document classification
+POST
+/predict/image
+Image classification
+POST
+/scan/pii
+PII scanning
+GET
+/health
+Service health check
+🧪 8. Usage Examples
+cURL Example – Image Classification
+
+curl -X POST http://localhost:8000/predict/image \
+-F "file=@sample_image.jpg"
+
+9. Testing
+Recommended testing areas:
+Data preprocessing
+Model loading and inference
+API endpoints
+PII detection logic
+Run tests using:
+pytest
+
+License
+This project is licensed under the MIT License.
