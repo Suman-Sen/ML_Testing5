@@ -1,7 +1,16 @@
 # Rough documentation (needs review)
 
-A comprehensive Machine Learning project integrating **multiple classifiers, backend APIs, and scanning utilities** — built to demonstrate model training, evaluation, inference APIs, and data protection workflows.
+This project is a full-stack machine learning application designed to demonstrate how AI/ML models can be integrated into real-world systems. It focuses on solving classification problems and includes:
 
+Document Classification – Categorize documents into predefined classes.
+Image Classification – Identify and classify images using ML models.
+PII Scanning – Detect sensitive information (names, emails, IDs) in documents using Python and TypeScript implementations.
+Backend REST API – Expose inference endpoints for seamless integration.
+Database Schemas – Support for MySQL, PostgreSQL, and Oracle.
+Containerized Deployment – Using Podman for portability and scalability.
+Modular Architecture – Ensures maintainability and easy extension.
+
+This project demonstrates end-to-end ML integration, including model training, inference, API development, and secure data handling.
 ---
 
 ## Table of Contents
@@ -41,13 +50,13 @@ This project demonstrates how machine learning models can be integrated into **r
 
 ## 2. Features
 
-✔️ Document Classification  
-✔️ Image Classification  
-✔️ Backend REST API  
-✔️ PII Scanner (Python & TypeScript)  
-✔️ SQL database schemas  
-✔️ Containerized deployment using Podman/Docker  
-✔️ Modular & scalable project structure  
+ Document Classification  
+ Image Classification  
+ Backend REST API  
+ PII Scanner (Python & TypeScript)  
+ SQL database schemas  
+ Containerized deployment using Podman 
+ Modular & scalable project structure  
 
 ---
 
@@ -60,14 +69,26 @@ This project demonstrates how machine learning models can be integrated into **r
 | Backend | FastAPI / Flask |
 | API | REST |
 | Database | MySQL / PostgreSQL / Oracle |
-| DevOps | Podman, Docker |
+| DevOps | Podman |
 | Tools | SQL, YAML |
 
 ---
 
-## 4. Repository Structure
-ML_Testing5/ ├── backend/                  # Backend API server ├── calssify/                 # Classification logic (naming preserved) ├── document_classifier/      # Document classification model & utilities ├── image_classifier/         # Image classification model & utilities ├── pii_scanner/              # PII scanner (Python) ├── pii-scanner-ts/           # PII scanner (TypeScript) ├── podman-compose.yml        # Container orchestration ├── requirements.txt          # Python dependencies ├── schema_mysql.sql          # MySQL schema ├── schema_postgres.sql       # PostgreSQL schema ├── schema_oracle.sql         # Oracle schema ├── seed_data.json            # Sample seed data └── README.md
----
+## 4. Repository Structure[needs to update]
+ML_Testing5/
+├── backend/                     # Backend API server (business logic, endpoints)
+├── calssify/                    # Classification logic (name preserved as per original)
+├── document_classifier/         # Document classification model & utilities
+├── image_classifier/            # Image classification model & utilities
+├── pii_scanner/                 # PII scanner implementation in Python
+├── pii-scanner-ts/              # PII scanner implementation in TypeScript
+├── podman-compose.yml           # Container orchestration for multi-service setup
+├── requirements.txt             # Python dependencies for the project
+├── schema_mysql.sql             # MySQL database schema
+├── schema_postgres.sql          # PostgreSQL database schema
+├── schema_oracle.sql            # Oracle database schema
+├── seed_data.json               # Sample seed data for initializing databases
+└── README.md                    # Project documentation and setup instructions---
 
 ## 5. Getting Started
 
@@ -77,7 +98,7 @@ Ensure the following are installed:
 
 - Python 3.9 or higher  
 - Node.js & npm (for TypeScript scanner)  
-- Podman or Docker  
+- Podman   
 - MySQL / PostgreSQL / Oracle (optional)
 
 ---
@@ -110,7 +131,7 @@ uvicorn main:app --reload
 http://localhost:8000
 
 5. Using the Classifiers
-📄 Document Classification
+ Document Classification
 POST /predict/document
 
 Image Classification
@@ -125,16 +146,18 @@ npm install
 npm start
 
 6. Model Descriptions
-📄 Document Classifier
-Classifies documents into predefined categories
+ Document Classifier : Classifies documents into predefined categories
 Includes preprocessing and inference pipeline
-🖼️ Image Classifier
+
+ Image Classifier
 CNN / Transfer Learning based approach
 Supports common image formats
-🕵️ PII Scanner
+
+ PII Scanner
 Detects sensitive information such as names, emails, IDs
 Uses rule-based and ML-assisted detection
-🌐 7. API Endpoints
+
+ 7. API Endpoints
 Method
 Endpoint
 Description
@@ -149,8 +172,9 @@ POST
 PII scanning
 GET
 /health
-Service health check
-🧪 8. Usage Examples
+Service health check 
+
+8. Usage Examples
 cURL Example – Image Classification
 
 curl -X POST http://localhost:8000/predict/image \
@@ -165,5 +189,5 @@ PII detection logic
 Run tests using:
 pytest
 
-License
+10. License
 This project is licensed under the MIT License.
